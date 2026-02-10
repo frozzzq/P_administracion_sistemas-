@@ -50,11 +50,61 @@ function desinstalacion{
 	}
 }
 
+
+
+
+function configuracionDhcp{
+	function validacionIp 
+	{
+		param([string]$mensaje)
+		do
+		{
+			$ip = read-host $mensaje
+			if ($ip -as [ipaddress]) {return $ip}
+			else {write-host "formato ipv4 invalido. reintente"}
+		} while ($true)
+	}
+
+
+	write-host "===CONFIGURACION DEL SERVICIO DHCP===" -foregroundcolor darkblue
+
+	$nombreScope = read-host "Ingrese un nombre para el scope: " 
+
+	$rangoI = validacionIp "IP Inicial del rango: "
+	
+	$prefijoI = $rangoI.split('.')[0..2] -join '.'
+	
+	do{
+		$rangoF = validacionIp "IP final del rango: "
+		$prefijoF = $rangoF.split('.')[0..2] -join '.'
+
+		if ([version]$rangoI -ge [version]$rangoF ){
+			write-host "error, la ip inicial ($rangoI) no puede ser mayor que el rango final ($rangoF)" -foregroundcolor red	
+		}
+		elseif ($prefijoI -ne $prefijoF){
+			write-host "error, la ip inicial debe ser del mismo rango que la ip final" -foregroundcolor red
+		}
+		else {
+			write-host "las IPs son validas" -foregroundcolor green
+			write-host "procediendo..." -foregroundcolor cyan
+			$redId = $prefijoI + ".0"
+		}
+	} while([version]$rangoI -ge [version]$rangoF -or $prefijoI -ne $prefijoF)
+	
+
+
+	$dns	= validacionIp "servidor DNS:	"
+
+	write-host "ejemplo de lease time: 08:00:00 (8 horas) 'dias.hrs.min.seg'"
+	$tiempolease = read-host "ingrese tiempo de concesion: " 
+}
+
 function menu{
 	write-host "==================MENU DE OPCIONES==================" -foregroundcolor blue
 	write-host "1. verificar instalacion dhcp" -foregroundcolor yellow
 	write-host "2. instalar servicio" -foregroundcolor yellow
 	write-host "3. desinstalar servicio (razon de practica)" -foregroundcolor yellow
+	write-host "4. configuracion de servicio dhcp" -foregroundcolor yellow
 }
 
 do {
@@ -66,6 +116,7 @@ do {
 		"1" {verificarInstalacion}
 		"2" {instalacion}
 		"3" {desinstalacion}
+		"4" {configuracionDhcp}
 		default {write-host "opcion invalida!" -foregroundcolor red}
 	}
 	$choice = read-host "escribe 'si' para continuar"
