@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # --- 1. INSTALACIÓN IDEMPOTENTE ---
 Write-Host "Verificando el rol DHCP..." -ForegroundColor Cyan
 $dhcpFeature = Get-WindowsFeature DHCP
@@ -24,7 +24,7 @@ $total = [math]::round($diskC.size /1GB, 2)
 write-host "espacio en disco:  " -nonewline; write-host "$free GB disponibles de $total GB" -foregroundcolor yellow
 
 write-host '===================================================================' -foregroundcolor cyan
->>>>>>> 520eaf719caa5da4bd3c619797a2b23580dc16c7
+
 
 # --- 2. ORQUESTACIÓN DE CONFIGURACIÓN DINÁMICA ---
 Write-Host "`n--- Configuración de Nuevo Ámbito ---" -ForegroundColor Cyan
