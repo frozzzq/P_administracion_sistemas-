@@ -116,6 +116,21 @@ function configuracionDhcp{
 	$rangoI = validacionIp "IP Inicial del rango: "
 	$prefijoI = $rangoI.split('.')[0..2] -join '.'
 	$octetoI = $rangoI.split('.')
+
+	write-host "configurando la ip fija del servidor ($rangoI)..." -foregroundcolor yellow
+	try{
+		$interfaz = (get-netadapter | where-object status -eq "Up" | select-object -first 1).name
+		remove-netipaddress -interfacealias $interfaz -confirm:$false -erroraction silentlycontinue
+		new-netipaddress -interfacealias $interfaz -ipaddress $rangoI -prefixlength 24 -erroraction stop
+		write-host "servidor ahora tiene la ip: $rangoI" -foregroundcolor green
+	} catch{
+		write-host "no se puede cambiar la ip del servidor: $($_.exception.message)" -foregroundcolor yellow
+	}
+
+	$ipSplit = $rangoI.split('.')
+	$ultimoOcteto = [int]$ipSplit[3] + 1
+	$rangoDhcpInicio = "$($ipSplit[0..2] -join '.').$ultimoOcteto"
+	write-host "el rango de clientes empezara en: $rangoDhcpInicio" -foregroundcolor gray
 	do{
 		$rangoF = validacionIp "IP final del rango: "
 		$prefijoF = $rangoF.split('.')[0..2] -join '.'
@@ -158,7 +173,7 @@ function configuracionDhcp{
 
 	$params = @{
 		Name		= $nombreScope
-		StartRange	= $rangoI
+		StartRange	= $rangoDhcpInicio
 		EndRange	= $rangoF
 		SubnetMask	= $mascara
 		LeaseDuration	= [timespan]$tiempolease
