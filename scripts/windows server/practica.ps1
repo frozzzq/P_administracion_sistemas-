@@ -84,13 +84,12 @@ function configuracionDhcp{
 	$nombreScope = read-host "Ingrese un nombre para el scope: " 
 
 	$rangoI = validacionIp "IP Inicial del rango: "
-	
 	$prefijoI = $rangoI.split('.')[0..2] -join '.'
-	
+	$octetoI = $rangoI.split('.')
 	do{
 		$rangoF = validacionIp "IP final del rango: "
 		$prefijoF = $rangoF.split('.')[0..2] -join '.'
-
+		$octetoF = $rangoI.split('.')
 		if ([version]$rangoI -ge [version]$rangoF ){
 			write-host "error, la ip inicial ($rangoI) no puede ser mayor que el rango final ($rangoF)" -foregroundcolor red	
 		}
@@ -100,7 +99,21 @@ function configuracionDhcp{
 		else {
 			write-host "las IPs son validas" -foregroundcolor green
 			write-host "procediendo..." -foregroundcolor cyan
+			write-host "CALCULANDO ID DE RED..." -foregroundcolor yellow
 			$redId = $prefijoI + ".0"
+			
+			write-host "CALCULANDO MASCARA DE RED..." -foregroundcolor yellow
+			if ($octetoI[0..2] -join '.' -eq $octetoF[0..2] -join '.'){
+				$mascara = "255.255.255.0"
+			}
+			elseif ($octetoI[0..1] -join '.' -eq $octetoF[0..1] -join '.'){
+				$mascara = "255.255.0.0"
+			}
+			else{
+				$mascara = "255.0.0.0"
+			}			
+			write-host "mascara calculada: $mascara" -foregroundcolor gray
+		
 		}
 	} while([version]$rangoI -ge [version]$rangoF -or $prefijoI -ne $prefijoF)
 	
@@ -110,6 +123,8 @@ function configuracionDhcp{
 
 	write-host "ejemplo de lease time: 08:00:00 (8 horas) 'dias.hrs.min.seg'"
 	$tiempolease = read-host "ingrese tiempo de concesion: " 
+
+	add-dhcpserverv4scope -name $nombreScope -startrange $rangoI -endrange $rangoF -subnetmask $mascara -ScopeId $redId -leaseduration $tiempolease -state active
 }
 
 function menu{
