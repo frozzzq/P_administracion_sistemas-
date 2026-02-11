@@ -28,8 +28,21 @@ function instalacion {
 	}
 	else 
 	{
-		install-windowsfeature -name DHCP -includemanagementtools
-		write-host "SERVICIO DHCP INSTALADO CON EXITO!" -foregroundcolor green		
+		try{
+			$resul = install-windowsfeature -name DHCP -includemanagementtools
+		
+			if($resul.restartneeded -eq "Yes"){
+				write-host "REINICIO REQUERIDO PARA COMPLETAR." -foregroundcolor yellow
+				$confirmar = read-host "desea reiniciar ahora? (si/no)"
+				if ($confirmar -eq "si") {restart-computer} 
+			}else{
+				write-host "SERVICIO DHCP INSTALADO CON EXITO!" -foregroundcolor green		
+
+			}
+		
+		}catch{
+			write-host "error al instalar" -foregroundcolor red
+		}
 	}
 }
 
