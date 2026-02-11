@@ -67,6 +67,7 @@ function desinstalacion{
 
 
 function configuracionDhcp{
+	import-module dhcpserver -force
 	function validacionIp 
 	{
 		param([string]$mensaje)
@@ -123,8 +124,60 @@ function configuracionDhcp{
 
 	write-host "ejemplo de lease time: 08:00:00 (8 horas) 'dias.hrs.min.seg'"
 	$tiempolease = read-host "ingrese tiempo de concesion: " 
+	
+	write-host "aplicando configuracion..." -foregroundcolor cyan
 
-	add-dhcpserverv4scope -name $nombreScope -startrange $rangoI -endrange $rangoF -subnetmask $mascara -ScopeId $redId -leaseduration $tiempolease -state active
+	$params = @{
+		Name		= $nombreScope
+		StartRange	= $rangoI
+		EndRange	= $rangoF
+		SubnetMask	= $mascara
+		LeaseDuration	= [timespan]$tiempolease
+		State		= "Active"
+	}
+
+
+	try{
+		add-DhcpServerv4Scope @params
+		set-dhcpserverv4optionvalue -scopeid $redId -dnsserver $dns -force
+		write-host "configuracion exitosa!" -foregroundcolor green
+	}
+	catch{
+		write-host "error: $($_.Exception.message)" -foregroundcolor red
+	}
+
+}
+
+function monitoreo{
+	write-host "==================MONITOREO Y ESTADO DEL SERVICIO==================" -foregroundcolor blue
+	$servicio = get-service -name DHCPServer -Erroraction silentlycontinue
+	if ($servicio){
+		$color = if ($servicio.status -eq "Running") {"green"} else {"red"}
+		write-host "estado del servicio: " -nonewline
+		write-host "$($servicio.Status)" -foregroundcolor $color
+	} else{
+		write-host "el servicio dhcp no esta instalado correctamente" -foregroundcolor red
+		return
+	}
+
+	write-host "--------------------------------------------------------------------------"
+	write-host "equipos conectados (leases activos): " -foregroundcolor yellow
+	$ambitos = get-dhcpserverv4scope -erroraction silentlycontinue
+	if ($ambitos) {
+		$hayleases = $false
+		foreach ($ambito in $ambitos){
+			$leases = get-dhcpserverv4lease -scopeid $ambito.scopeid -erroraction silentlycontinue
+			if ($leases) {
+				$leases | select-object ipaddress, clientid, hostname, leaseexpirytime | format-table -autosize
+				$hayleases = $true
+			}
+		}
+		if (-not $hayleases){
+			write-host "no hay equipos conectados actualmente" -foregroundcolor gray
+		}
+	} else{
+		write-host "no hay ambitos (scopes) configurados"
+	}
 }
 
 function menu{
@@ -133,6 +186,7 @@ function menu{
 	write-host "2. instalar servicio" -foregroundcolor yellow
 	write-host "3. desinstalar servicio (razon de practica)" -foregroundcolor yellow
 	write-host "4. configuracion de servicio dhcp" -foregroundcolor yellow
+	write-host "5. monitoreo de servicio "-foregroundcolor yellow
 }
 
 do {
@@ -145,6 +199,7 @@ do {
 		"2" {instalacion}
 		"3" {desinstalacion}
 		"4" {configuracionDhcp}
+		"5" {monitoreo}
 		default {write-host "opcion invalida!" -foregroundcolor red}
 	}
 	$choice = read-host "escribe 'si' para continuar"
