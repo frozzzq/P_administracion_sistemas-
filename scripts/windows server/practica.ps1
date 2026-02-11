@@ -74,7 +74,28 @@ function configuracionDhcp{
 		do
 		{
 			$ip = read-host $mensaje
-			if ($ip -as [ipaddress]) {return $ip}
+			$esvalida = $false
+			if ($ip -as [ipaddress]){
+				$ipObj = [ipaddress]$ip
+
+				$octetos = $ip.split('.')
+				if ($ip -eq "0.0.0.0"){
+
+					write-host "error: 0.0.0.0 es una direccion reservada" -foregroundcolor red
+				}
+				elseif ($ip -eq "255.255.255.255") {
+					write-host "error: 255.255.255.255 es una direccion global" -foregroundcolor red
+				}
+				elseif ($octetos[0] -eq "127){
+					write-host error: el rango 127.x.x.x es reservado localmente" -foregroundcolor red
+				}
+				elseif ($octetos[0] -ge 244) {
+					write-host "error: las ips que inician con $octetos[0] son multicast " -foregroundcolor red
+				}
+				else{
+					return $ip
+				}
+			}
 			else {write-host "formato ipv4 invalido. reintente"}
 		} while ($true)
 	}
@@ -84,8 +105,7 @@ function configuracionDhcp{
 
 	$nombreScope = read-host "Ingrese un nombre para el scope: " 
 
-	$rangoI = validacionIp "IP Inicial del rango: "
-	$prefijoI = $rangoI.split('.')[0..2] -join '.'
+	$rangoI = validacionIp "IP Inicial del rango: "$prefijoI = $rangoI.split('.')[0..2] -join '.'
 	$octetoI = $rangoI.split('.')
 	do{
 		$rangoF = validacionIp "IP final del rango: "
@@ -203,7 +223,7 @@ do {
 		default {write-host "opcion invalida!" -foregroundcolor red}
 	}
 	$choice = read-host "escribe 'si' para continuar"
-}while ($choice -ne "si")
+}while ($choice -eq "si")
 write-host "procediendo..." -foregroundcolor cyan
 
 
