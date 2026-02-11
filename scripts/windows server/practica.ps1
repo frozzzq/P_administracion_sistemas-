@@ -53,8 +53,16 @@ function desinstalacion{
 	
 	if ($check.installed) 
 	{
-		uninstall-windowsfeature -name DHCP -includemanagementtools
-		write-host "desinstalacion exitosa!" -foregroundcolor green
+		write-host "deteniendo proceso en memoria..." foregroundcolor yellow
+		stop-service -name DHCPServer -force -erroraction silentlycontinue
+	
+		$res = uninstall-windowsfeature -name DHCP -includemanagementtools
+		if ($res.success){
+			write-host "desinstalacion exitosa!" -foregroundcolor green
+			if ($res.restartneeded -eq "Yes"){
+				write-host "advertencia: se necesita un reinicio" -foregroundcolor red
+			}
+		}
 	}
 	else 
 	{
@@ -86,8 +94,8 @@ function configuracionDhcp{
 				elseif ($ip -eq "255.255.255.255") {
 					write-host "error: 255.255.255.255 es una direccion global" -foregroundcolor red
 				}
-				elseif ($octetos[0] -eq "127){
-					write-host error: el rango 127.x.x.x es reservado localmente" -foregroundcolor red
+				elseif ($octetos[0] -eq "127"){
+					write-host "error: el rango 127.x.x.x es reservado localmente" -foregroundcolor red
 				}
 				elseif ($octetos[0] -ge 244) {
 					write-host "error: las ips que inician con $octetos[0] son multicast " -foregroundcolor red
@@ -105,7 +113,8 @@ function configuracionDhcp{
 
 	$nombreScope = read-host "Ingrese un nombre para el scope: " 
 
-	$rangoI = validacionIp "IP Inicial del rango: "$prefijoI = $rangoI.split('.')[0..2] -join '.'
+	$rangoI = validacionIp "IP Inicial del rango: "
+	$prefijoI = $rangoI.split('.')[0..2] -join '.'
 	$octetoI = $rangoI.split('.')
 	do{
 		$rangoF = validacionIp "IP final del rango: "
@@ -182,21 +191,26 @@ function monitoreo{
 
 	write-host "--------------------------------------------------------------------------"
 	write-host "equipos conectados (leases activos): " -foregroundcolor yellow
-	$ambitos = get-dhcpserverv4scope -erroraction silentlycontinue
-	if ($ambitos) {
-		$hayleases = $false
-		foreach ($ambito in $ambitos){
-			$leases = get-dhcpserverv4lease -scopeid $ambito.scopeid -erroraction silentlycontinue
-			if ($leases) {
-				$leases | select-object ipaddress, clientid, hostname, leaseexpirytime | format-table -autosize
-				$hayleases = $true
+	try{
+		$ambitos = get-dhcpserverv4scope -erroraction silentlycontinue
+		if ($ambitos) {
+			$hayleases = $false
+			foreach ($ambito in $ambitos){
+				$leases = get-dhcpserverv4lease -scopeid $ambito.scopeid -erroraction silentlycontinue
+				if ($leases) {
+					$leases | select-object ipaddress, clientid, hostname, leaseexpirytime | format-table -autosize
+					$hayleases = $true
+				}
 			}
+			if (-not $hayleases){
+				write-host "no hay equipos conectados actualmente" -foregroundcolor gray
+			}
+		} else{
+			write-host "no hay ambitos (scopes) configurados"
 		}
-		if (-not $hayleases){
-			write-host "no hay equipos conectados actualmente" -foregroundcolor gray
-		}
-	} else{
-		write-host "no hay ambitos (scopes) configurados"
+	}catch{
+		write-host "no existe el servicio o no hay clientes disponibles" -foregroundcolor yellow
+
 	}
 }
 
