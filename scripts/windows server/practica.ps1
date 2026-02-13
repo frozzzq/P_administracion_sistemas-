@@ -166,6 +166,16 @@ function configuracionDhcp{
 
 
 	$dns	= validacionIp "servidor DNS:	"
+	if (-not [string]::isnullorwhitespace($dns)) {
+		set-dhcpserverv4optionvalue -scopeid $redId -optionid 6 -value $dns
+		write-host "dns configurado: $dns" -foregroundcolor green
+	}
+
+	$gateway = read-host "ingrese la ip del gateway/puerta de enlace (deje en blanco para saltar"
+	if (-not [string]::isnullorwhitespace($gateway)) {
+		set-dhcpserverv4optionvalue -scopeid $redId -optionid 3 -value $gateway
+		write-host "gateway configurado: $gateway" -foregroundcolor green
+	}
 
 	write-host "ejemplo de lease time: 08:00:00 (8 horas) 'dias.hrs.min.seg'"
 	$tiempolease = read-host "ingrese tiempo de concesion: " 
