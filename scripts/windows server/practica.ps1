@@ -120,8 +120,9 @@ function configuracionDhcp{
 	write-host "configurando la ip fija del servidor ($rangoI)..." -foregroundcolor yellow
 	try{
 		$interfaz = (get-netadapter | where-object status -eq "Up" | select-object -first 1).name
-		remove-netipaddress -interfacealias $interfaz -confirm:$false -erroraction silentlycontinue
-		new-netipaddress -interfacealias $interfaz -ipaddress $rangoI -prefixlength 24 -erroraction stop
+		remove-netipaddress -interfacealias "Ethernet 2" -confirm:$false -erroraction silentlycontinue
+		new-netipaddress -interfacealias "Ethernet 2" -ipaddress $rangoI -prefixlength 24 -erroraction silentlycontinue
+		set-dhcpserverv4binding -bindingstate $true -interfacealias "Ethernet 2"
 		write-host "servidor ahora tiene la ip: $rangoI" -foregroundcolor green
 	} catch{
 		write-host "no se puede cambiar la ip del servidor: $($_.exception.message)" -foregroundcolor yellow
