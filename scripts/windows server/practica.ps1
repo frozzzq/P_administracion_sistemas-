@@ -98,7 +98,7 @@ function configuracionDhcp{
 				elseif ($octetos[0] -eq "127"){
 					write-host "error: el rango 127.x.x.x es reservado localmente" -foregroundcolor red
 				}
-				elseif ($octetos[0] -ge 244) {
+				elseif ([int]$octetos[0] -ge 224) {
 					write-host "error: las ips que inician con $octetos[0] son multicast " -foregroundcolor red
 				}
 				else{
