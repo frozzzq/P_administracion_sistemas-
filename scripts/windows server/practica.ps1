@@ -77,44 +77,41 @@ function desinstalacion{
 function configuracionDhcp{
 	import-module dhcpserver -force
 	function validacionIp {
-    param([string]$mensaje, [bool]$opcional = $false)
-    do {
-        $ip = read-host $mensaje
-        if ($opcional -and [string]::IsNullOrWhiteSpace($ip)) { return $null }
+    	param([string]$mensaje, [bool]$opcional = $false)
+    	do {
+        	$ip = read-host $mensaje
+        	if ($opcional -and [string]::IsNullOrWhiteSpace($ip)) { return $null }
 
-        # Validamos formato básico y que no haya ceros a la izquierda usando Regex
-        # Esta expresión regular evita que un octeto empiece con 0 a menos que sea solo '0'
-        if ($ip -match '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$') {
+        	if ($ip -match '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$') {
             
-            $octetos = $ip.Split('.')
-            $errorCero = $false
+            	$octetos = $ip.Split('.')
+            	$errorCero = $false
 
-            foreach ($octeto in $octetos) {
-                if ($octeto.Length -gt 1 -and $octeto.StartsWith("0")) {
-                    $errorCero = $true
-                    break
-                }
-            }
+            	foreach ($octeto in $octetos) {
+                	if ($octeto.Length -gt 1 -and $octeto.StartsWith("0")) {
+                    	$errorCero = $true
+                    	break
+                	}
+            	}
 
-            if ($errorCero) {
-                write-host "error: no se permiten ceros a la izquierda (ej. use '1' en lugar de '01')" -foregroundcolor red
-                continue
-            }
+            	if ($errorCero) {
+                	write-host "error: no se permiten ceros a la izquierda (ej. use '1' en lugar de '01')" -foregroundcolor red
+                	continue
+            	}
 
-            # Validaciones de rangos especiales (usando [int] para evitar errores de tipo)
-            $primerOcteto = [int]$octetos[0]
+             	$primerOcteto = [int]$octetos[0]
             
-            if ($ip -eq "0.0.0.0") { write-host "error: 0.0.0.0 reservada" -foregroundcolor red }
-            elseif ($ip -eq "255.255.255.255") { write-host "error: Global Broadcast" -foregroundcolor red }
-            elseif ($primerOcteto -eq 127) { write-host "error: Rango Loopback" -foregroundcolor red }
-            elseif ($primerOcteto -ge 224) { write-host "error: IP Multicast o Reservada ($primerOcteto)" -foregroundcolor red }
-            else { return $ip }
-        }
-        else {
-            write-host "formato ipv4 invalido o fuera de rango (0-255). reintente" -foregroundcolor red
-        }
-    } while ($true)
-
+            	if ($ip -eq "0.0.0.0") { write-host "error: 0.0.0.0 reservada" -foregroundcolor red }
+            	elseif ($ip -eq "255.255.255.255") { write-host "error: Global Broadcast" -foregroundcolor red }
+            	elseif ($primerOcteto -eq 127) { write-host "error: Rango Loopback" -foregroundcolor red }
+            	elseif ($primerOcteto -ge 224) { write-host "error: IP Multicast o Reservada ($primerOcteto)" -foregroundcolor red }
+            	else { return $ip }
+        	}
+        	else {
+            	write-host "formato ipv4 invalido o fuera de rango (0-255). reintente" -foregroundcolor red
+        	}
+    	} while ($true)
+}
 
 
 	write-host "===CONFIGURACION DEL SERVICIO DHCP===" -foregroundcolor darkblue
@@ -202,7 +199,7 @@ function configuracionDhcp{
 
 	try{
 		add-DhcpServerv4Scope @params
-		set-dhcpserverv4optionvalue -scopeid $redId -optionid 6 -value $dns
+	
 		set-dhcpserverv4optionvalue -scopeid $redId -dnsserver $dns -force
 		write-host "configuracion exitosa!" -foregroundcolor green
 	}
