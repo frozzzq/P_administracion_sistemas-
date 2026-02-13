@@ -78,10 +78,11 @@ function configuracionDhcp{
 	import-module dhcpserver -force
 	function validacionIp 
 	{
-		param([string]$mensaje)
+		param([string]$mensaje, [bool]$opcional = $false)
 		do
 		{
 			$ip = read-host $mensaje
+			if ($opcional -and [string]::isnullorwhitespace($ip)) {return $null}
 			$esvalida = $false
 			if ($ip -as [ipaddress]){
 				$ipObj = [ipaddress]$ip
@@ -135,7 +136,7 @@ function configuracionDhcp{
 	do{
 		$rangoF = validacionIp "IP final del rango: "
 		$prefijoF = $rangoF.split('.')[0..2] -join '.'
-		$octetoF = $rangoI.split('.')
+		$octetoF = $rangoF.split('.')
 		if ([version]$rangoI -ge [version]$rangoF ){
 			write-host "error, la ip inicial ($rangoI) no puede ser mayor que el rango final ($rangoF)" -foregroundcolor red	
 		}
@@ -167,7 +168,7 @@ function configuracionDhcp{
 
 	$dns	= validacionIp "servidor DNS:	"
 	if (-not [string]::isnullorwhitespace($dns)) {
-		set-dhcpserverv4optionvalue -scopeid $redId -optionid 6 -value $dns
+		
 		write-host "dns configurado: $dns" -foregroundcolor green
 	}
 
@@ -194,6 +195,7 @@ function configuracionDhcp{
 
 	try{
 		add-DhcpServerv4Scope @params
+		set-dhcpserverv4optionvalue -scopeid $redId -optionid 6 -value $dns
 		set-dhcpserverv4optionvalue -scopeid $redId -dnsserver $dns -force
 		write-host "configuracion exitosa!" -foregroundcolor green
 	}
