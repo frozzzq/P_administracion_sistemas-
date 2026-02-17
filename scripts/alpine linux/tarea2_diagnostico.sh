@@ -20,12 +20,12 @@ validacionIp() {
     local mensaje=$1
     local opcional=$2
     while true; do
-        # IMPORTANTE: Enviamos el mensaje a >&2 para que sea visible durante la captura
+
         printf "${CYAN}%s${NC}" "$mensaje" >&2
         read ip
         if [ "$opcional" = "true" ] && [ -z "$ip" ]; then echo ""; return 0; fi
 
-        # Validar formato con Regex
+
         if echo "$ip" | grep -E -q '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'; then
             
             # Validar ceros a la izquierda
@@ -34,14 +34,14 @@ validacionIp() {
                 continue
             fi
 
-            # Validaciones especiales
+         
             primerOcteto=$(echo $ip | cut -d. -f1)
             if [ "$ip" = "0.0.0.0" ]; then echo -e "${RED}error: 0.0.0.0 reservada${NC}" >&2
             elif [ "$ip" = "255.255.255.255" ]; then echo -e "${RED}error: Global Broadcast${NC}" >&2
             elif [ "$primerOcteto" -eq 127 ]; then echo -e "${RED}error: Rango Loopback${NC}" >&2
             elif [ "$primerOcteto" -ge 224 ]; then echo -e "${RED}error: IP Multicast o Reservada${NC}" >&2
             else
-                # Solo el valor final se envía al canal normal (stdout) para ser capturado por la variable
+        
                 echo "$ip"
                 return 0
             fi
@@ -96,7 +96,7 @@ configuracionDhcp() {
     printf "Ingrese un nombre para el scope: "
     read nombreScope
 
-    # Ahora esto SI mostrará el mensaje en pantalla
+   
     rangoI=$(validacionIp "IP Inicial del rango (Fija para Servidor eth1): ")
     prefijoI=$(echo $rangoI | cut -d. -f1-3)
     
@@ -136,7 +136,7 @@ configuracionDhcp() {
 
     echo -e "${CYAN}generando configuracion JSON...${NC}"
 
-    # Generamos el JSON. Usamos una técnica para que si gateway está vacío, no rompa el JSON.
+  
     OPT_GW=""
     if [ -n "$gateway" ]; then
         OPT_GW=", { \"name\": \"routers\", \"data\": \"$gateway\" }"
