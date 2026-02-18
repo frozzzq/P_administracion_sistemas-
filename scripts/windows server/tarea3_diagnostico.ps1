@@ -10,7 +10,7 @@ do{
 
     $opc = Read host "ingrese una opcion:"  
 
-    switch{
+    switch($opc){
 
         1{
             get-WindowsFeature DNS
