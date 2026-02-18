@@ -12,9 +12,17 @@ do{
 
     switch{
 
-        case "1":
+        1{
             get-WindowsFeature DNS
+        }
 
+        2{
+            install-WindowsFeature DNS
+        }
+            
+        3{
+            remove-WindowsFeature DNS
+        }
             
     
     
