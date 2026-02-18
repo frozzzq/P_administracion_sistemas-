@@ -8,7 +8,7 @@ do{
     write host "[2] - INSTALAR SERVICIO DNS"
     write host "[3] - REMOVER SERVICIO DNS"
 
-    $opc = Read host "ingrese una opcion:"  
+    $opc = Read-host "ingrese una opcion:"  
 
     switch($opc){
 
