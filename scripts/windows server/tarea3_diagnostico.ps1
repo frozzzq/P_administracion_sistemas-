@@ -13,7 +13,12 @@ do{
     switch($opc){
 
         1{
-            get-WindowsFeature DNS
+            $verificar = get-WindowsFeature DNS
+            if ($verificar.Installed){
+                write-host "el servicio DNS esta instalado!" -ForegroundColor Green
+            }else{
+                write-host "el servicio no esta instalado" -ForegroundColor Yellow
+            }
         }
 
         2{
@@ -23,18 +28,10 @@ do{
         3{
             remove-WindowsFeature DNS
         }
-            
-    
-    
-    
     }
 
+    write host "ingrese 'salir' para pasar a el siguiente procedimiento"
+}while($opc -ne "salir")
 
 
 
-}while($opc -eq "si")
-
-
-
-
-get-WindowsFeature DNS
