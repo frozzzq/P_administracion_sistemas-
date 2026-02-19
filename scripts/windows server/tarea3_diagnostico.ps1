@@ -34,69 +34,62 @@ function GestionarIpFija {
 
 # --- FUNCIONES PRINCIPALES ---
 
-function ConfigurarDns {
-    # 1. Verificar IP Fija
-    GestionarIpFija
+# 1. SIEMPRE LAS FUNCIONES DE APOYO AL PRINCIPIO
+function validacionIp {
+    param([string]$mensaje, [bool]$opcional = $false)
+    do {
+        $ip = Read-Host $mensaje
+        if ($opcional -and [string]::IsNullOrWhiteSpace($ip)) { return $null }
+        if ($ip -match '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$') {
+            return $ip
+        }
+        Write-Host "Formato IPv4 invalido. Reintente." -ForegroundColor Red
+    } while ($true)
+}
 
-    Write-Host "`n=== CONFIGURACIÓN DE ZONA Y REGISTROS ===" -ForegroundColor Blue
+# 2. FUNCIONES DE SERVICIO
+function ConfigurarDns {
+    Write-Host "`n=== CONFIGURACION DE ZONA Y REGISTROS ===" -ForegroundColor Blue
+    
     $dominio = Read-Host "Ingrese el nombre de la zona (ej: reprobados.com)"
     if ([string]::IsNullOrWhiteSpace($dominio)) { $dominio = "reprobados.com" }
 
-    # Idempotencia: Verificar si la zona ya existe
-    if (Get-DnsServerZone -Name $dominio -ErrorAction SilentlyContinue) {
-        Write-Host "La zona '$dominio' ya existe. Saltando creación." -ForegroundColor Yellow
-    } else {
-        Write-Host "Creando zona primaria: $dominio..." -ForegroundColor Yellow
-        Add-DnsServerPrimaryZone -Name $dominio -ZoneFile "$dominio.dns"
-        Write-Host "Zona creada con éxito." -ForegroundColor Green
-    }
-
-    # Configuración de Registro A
+    # Corregido: Espacio antes del ':' para evitar el error de variable
     $hostname = Read-Host "Ingrese el hostname (ej: www)"
     if ([string]::IsNullOrWhiteSpace($hostname)) { $hostname = "www" }
-    
-    $ipDestino = validacionIp "Ingrese la IP a la que apuntará $hostname.$dominio: "
 
-    # Idempotencia: Verificar si el registro ya existe
-    $registroExistente = Get-DnsServerResourceRecord -ZoneName $dominio -Name $hostname -RRType A -ErrorAction SilentlyContinue
-    if ($registroExistente) {
-        Write-Host "El registro '$hostname' ya existe en '$dominio'. Actualizando IP..." -ForegroundColor Yellow
-        # Eliminamos y creamos para actualizar (Idempotencia)
-        Remove-DnsServerResourceRecord -ZoneName $dominio -Name $hostname -RRType A -Force
-    }
+    # Corregido: Delimitamos con {} para evitar errores de parseo
+    $ipDestino = validacionIp "Ingrese la IP a la que apuntara ${hostname}.${dominio} : "
 
-    Add-DnsServerResourceRecordA -Name $hostname -ZoneName $dominio -IPv4Address $ipDestino
-    Write-Host "Registro A configurado: $hostname.$dominio -> $ipDestino" -ForegroundColor Green
-}
-
-function MonitoreoDns {
-    Write-Host "`n=== MONITOREO Y VALIDACIÓN DE RESOLUCIÓN ===" -ForegroundColor Blue
-    
-    # 1. Estado del servicio
-    $servicio = Get-Service -Name DNS
-    Write-Host "Estado del Servicio: " -NoNewline
-    $color = if ($servicio.Status -eq "Running") { "Green" } else { "Red" }
-    Write-Host $servicio.Status -ForegroundColor $color
-
-    if ($servicio.Status -eq "Running") {
-        $dominioTest = "reprobados.com"
-        $hostTest = "www.reprobados.com"
-
-        Write-Host "`nEjecutando pruebas de resolución para $dominioTest..." -ForegroundColor Cyan
-        
-        # Prueba NSLOOKUP
-        Write-Host "[Prueba nslookup]" -ForegroundColor Yellow
-        nslookup $dominioTest 127.0.0.1
-        
-        # Prueba PING
-        Write-Host "`n[Prueba ping]" -ForegroundColor Yellow
-        if (Test-Connection -ComputerName $hostTest -Count 1 -Quiet) {
-            Write-Host "¡ÉXITO! $hostTest responde correctamente." -ForegroundColor Green
-        } else {
-            Write-Host "FALLO: No se pudo hacer ping a $hostTest. Verifique el firewall." -ForegroundColor Red
+    try {
+        if (-not (Get-DnsServerZone -Name $dominio -ErrorAction SilentlyContinue)) {
+            Add-DnsServerPrimaryZone -Name $dominio -ZoneFile "$dominio.dns"
+            Write-Host "Zona $dominio creada." -ForegroundColor Green
         }
+        
+        Add-DnsServerResourceRecordA -Name $hostname -ZoneName $dominio -IPv4Address $ipDestino -AllowUpdateAny
+        Write-Host "Registro configurado con exito." -ForegroundColor Green
+    } catch {
+        Write-Host "Error en la configuracion: $($_.Exception.Message)" -ForegroundColor Red
     }
-}
+} # Asegúrate de que esta llave de cierre exista
+
+# 3. CUERPO PRINCIPAL DEL SCRIPT
+do {
+    Write-Host "`n--- MENU DNS ---" -ForegroundColor Yellow
+    Write-Host "[1] Verificar Instalacion"
+    Write-Host "[4] Configurar DNS"
+    Write-Host "Escriba 'salir' para finalizar."
+
+    $opc = Read-Host "`nIngrese una opcion"
+
+    switch($opc) {
+        "1" { 
+            if ((Get-WindowsFeature DNS).Installed) { Write-Host "Instalado" } else { Write-Host "No instalado" }
+        }
+        "4" { ConfigurarDns }
+    }
+} while ($opc -ne "salir")
 
 # --- MENU PRINCIPAL ---
 do {
