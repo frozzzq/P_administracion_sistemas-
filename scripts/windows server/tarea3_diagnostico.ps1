@@ -31,19 +31,6 @@ function GestionarIpFija {
     }
 }
 
-
-function validacionIp {
-    param([string]$mensaje, [bool]$opcional = $false)
-    do {
-        $ip = Read-Host $mensaje
-        if ($opcional -and [string]::IsNullOrWhiteSpace($ip)) { return $null }
-        if ($ip -match '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$') {
-            return $ip
-        }
-        Write-Host "Formato IPv4 invalido. Reintente." -ForegroundColor Red
-    } while ($true)
-}
-
 function ConfigurarDns {
     Write-Host "`n=== CONFIGURACION DE ZONA Y REGISTROS ===" -ForegroundColor Blue
     
@@ -82,21 +69,22 @@ function borrarDominio{
     }
 }
 
-do {
-    Write-Host "`n--- MENU DNS ---" -ForegroundColor Yellow
-    Write-Host "[1] Verificar Instalacion"
-    Write-Host "[4] Configurar DNS"
-    Write-Host "Escriba 'salir' para finalizar."
+#do {
+ #   Write-Host "`n--- MENU DNS ---" -ForegroundColor Yellow
+  #  Write-Host "[1] Verificar Instalacion"
+   # Write-Host "[4] Configurar DNS"
+    #Write-Host "Escriba 'salir' para finalizar."
 
-    $opc = Read-Host "`nIngrese una opcion"
+    #$opc = Read-Host "`nIngrese una opcion"
 
-    switch($opc) {
-        "1" { 
-            if ((Get-WindowsFeature DNS).Installed) { Write-Host "Instalado" } else { Write-Host "No instalado" }
-        }
-        "4" { ConfigurarDns }
-    }
-} while ($opc -ne "salir")
+  #  switch($opc) {
+   #     "1" { 
+    #        if ((Get-WindowsFeature DNS).Installed) { Write-Host "Instalado" } else { Write-Host "No instalado" }
+     #   }
+      
+      #  "4" { ConfigurarDns }
+   # }
+#} while ($opc -ne "salir")
 
 do {
     Write-Host "`n======================================================================" -ForegroundColor Yellow
@@ -120,7 +108,7 @@ do {
         "2" { Install-WindowsFeature DNS -IncludeManagementTools }
         "3" { Uninstall-WindowsFeature DNS -Remove }
         "4" { ConfigurarDns }
-        "5" {borrarDominio}
+        "5" { borrarDominio }
         "6" { MonitoreoDns }
         "7" { $opc = "salir" }
     }

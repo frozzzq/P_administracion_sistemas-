@@ -215,7 +215,7 @@ function configuracionDhcp {
 function borrarScopes{
 	try{
 		Get-DhcpServerv4Scope | Remove-DhcpServerv4Scope -Force
-	}carch{
+	}catch{
 		write-host "error al borrar scopes: $($_.exception.message)"
 	}
 }
