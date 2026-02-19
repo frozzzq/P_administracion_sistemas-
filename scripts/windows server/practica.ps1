@@ -136,10 +136,10 @@ function configuracionDhcp {
         }
     } while ($null -eq $rangoF)
 
-    # ... (Resto de tu configuración de Gateway opcional y DNS) ...
+   
     $gateway = read-host "IP Gateway (Enter para saltar)"
     
-    # CREACIÓN DEL SCOPE (Asegúrate de que las variables existan)
+  
     try {
         $redId = "$prefijoI.0"
         Add-DhcpServerv4Scope -Name $nombreScope -StartRange "$prefijoI.10" -EndRange $rangoF -SubnetMask "255.255.255.0"
@@ -152,7 +152,7 @@ function configuracionDhcp {
         write-host "Error al crear scope: $($_.Exception.Message)" -foregroundcolor red
     }
 }
-    # ... (Mantén tu función validacionIp aquí adentro como la tienes) ...
+
 
     write-host "=== CONFIGURACION DEL SERVICIO DHCP ===" -foregroundcolor darkblue
 
@@ -160,10 +160,10 @@ function configuracionDhcp {
     $rangoI = validacionIp "IP Inicial del rango (IP del Servidor)"
     $prefijoI = $rangoI.split('.')[0..2] -join '.'
     
-    # --- Configuración de IP Fija en el Servidor ---
+
     write-host "Configurando IP fija en el servidor ($rangoI)..." -foregroundcolor yellow
     try {
-        # ¡OJO! Asegúrate de que tu interfaz se llame "Ethernet 2"
+       
         remove-netipaddress -interfacealias "Ethernet 2" -confirm:$false -erroraction silentlycontinue
         new-netipaddress -interfacealias "Ethernet 2" -ipaddress $rangoI -prefixlength 24 -erroraction silentlycontinue
         set-dhcpserverv4binding -bindingstate $true -interfacealias "Ethernet 2"
@@ -171,7 +171,7 @@ function configuracionDhcp {
         write-host "Aviso: No se pudo cambiar la IP (quizás ya está configurada): $($_.exception.message)" -foregroundcolor yellow
     }
 
-    # --- Cálculo de Rango y Máscara ---
+
     $rangoDhcpInicio = "$prefijoI.$([int]($rangoI.split('.')[3]) + 1)"
     do {
         $rangoF = validacionIp "IP final del rango"
@@ -180,29 +180,28 @@ function configuracionDhcp {
     } while ([version]$rangoI -ge [version]$rangoF -or $prefijoI -ne $prefijoF)
 
     $redId = $prefijoI + ".0"
-    $mascara = "255.255.255.0" # Simplificado para el ejemplo
+    $mascara = "255.255.255.0" 
 
-    # --- Captura de Datos Opcionales ---
+   
     $dns = validacionIp "Servidor DNS (Enter para saltar)" $true
     
-    # AQUÍ ESTÁ EL CAMBIO: El gateway se guarda pero NO se aplica todavía
+   
     $gateway = read-host "Ingrese la IP del Gateway (Enter para saltar)"
     
     $tiempolease = read-host "Ingrese tiempo de concesion (ej: 08:00:00)"
     if ([string]::IsNullOrWhiteSpace($tiempolease)) { $tiempolease = "08:00:00" }
 
-    # --- Aplicación de Configuración ---
     write-host "Aplicando configuracion..." -foregroundcolor cyan
     try {
-        # 1. CREAR EL SCOPE (Esto es lo primero)
+       
         add-DhcpServerv4Scope -Name $nombreScope -StartRange $rangoDhcpInicio -EndRange $rangoF -SubnetMask $mascara -LeaseDuration ([timespan]$tiempolease) -State "Active"
 
-        # 2. APLICAR DNS SI EXISTE
+   
         if (-not [string]::IsNullOrWhiteSpace($dns)) {
             set-dhcpserverv4optionvalue -scopeid $redId -dnsserver $dns -force
         }
 
-        # 3. APLICAR GATEWAY SI EXISTE (Ahora sí funciona porque el Scope ya existe)
+       
         if (-not [string]::IsNullOrWhiteSpace($gateway)) {
             set-dhcpserverv4optionvalue -scopeid $redId -optionid 3 -value $gateway
             write-host "Gateway configurado: $gateway" -foregroundcolor green
@@ -212,6 +211,13 @@ function configuracionDhcp {
     } catch {
         write-host "Error critico: $($_.Exception.message)" -foregroundcolor red
     }
+}
+function borrarScopes{
+	try{
+		Get-DhcpServerv4Scope | Remove-DhcpServerv4Scope -Force
+	}carch{
+		write-host "error al borrar scopes: $($_.exception.message)"
+	}
 }
 
 function monitoreo{
@@ -258,6 +264,7 @@ function menu{
 	write-host "3. desinstalar servicio (razon de practica)" -foregroundcolor yellow
 	write-host "4. configuracion de servicio dhcp" -foregroundcolor yellow
 	write-host "5. monitoreo de servicio "-foregroundcolor yellow
+	write-host "6. borrar scopes" -foregroundcolor yellow
 }
 
 do {
@@ -271,6 +278,7 @@ do {
 		"3" {desinstalacion}
 		"4" {configuracionDhcp}
 		"5" {monitoreo}
+		"6" {borrarScopes}
 		default {write-host "opcion invalida!" -foregroundcolor red}
 	}
 	$choice = read-host "escribe 'si' para continuar"
