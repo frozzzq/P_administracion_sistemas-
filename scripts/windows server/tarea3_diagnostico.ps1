@@ -107,7 +107,9 @@ do {
         }
         "2" { Install-WindowsFeature DNS -IncludeManagementTools }
         "3" { Uninstall-WindowsFeature DNS -Remove }
-        "4" { ConfigurarDns }
+        "4" {
+            ConfigurarDns
+        }
         "5" { borrarDominio }
         "6" { MonitoreoDns }
         "7" { $opc = "salir" }
