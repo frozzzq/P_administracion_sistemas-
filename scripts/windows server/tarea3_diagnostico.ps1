@@ -1,4 +1,4 @@
-# --- FUNCIONES DE APOYO (REUTILIZABLES) ---
+
 
 function validacionIp {
     param([string]$mensaje, [bool]$opcional = $false)
@@ -14,7 +14,6 @@ function validacionIp {
 
 function GestionarIpFija {
     Write-Host "`n[Verificando Configuración de Red]" -ForegroundColor Cyan
-    # Buscamos la interfaz activa que no sea Loopback
     $interfaz = Get-NetIPInterface -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch "Loopback" } | Select-Object -First 1
     
     if ($interfaz.Dhcp -eq "Enabled") {
@@ -32,9 +31,7 @@ function GestionarIpFija {
     }
 }
 
-# --- FUNCIONES PRINCIPALES ---
 
-# 1. SIEMPRE LAS FUNCIONES DE APOYO AL PRINCIPIO
 function validacionIp {
     param([string]$mensaje, [bool]$opcional = $false)
     do {
@@ -47,18 +44,15 @@ function validacionIp {
     } while ($true)
 }
 
-# 2. FUNCIONES DE SERVICIO
 function ConfigurarDns {
     Write-Host "`n=== CONFIGURACION DE ZONA Y REGISTROS ===" -ForegroundColor Blue
     
     $dominio = Read-Host "Ingrese el nombre de la zona (ej: reprobados.com)"
     if ([string]::IsNullOrWhiteSpace($dominio)) { $dominio = "reprobados.com" }
 
-    # Corregido: Espacio antes del ':' para evitar el error de variable
     $hostname = Read-Host "Ingrese el hostname (ej: www)"
     if ([string]::IsNullOrWhiteSpace($hostname)) { $hostname = "www" }
 
-    # Corregido: Delimitamos con {} para evitar errores de parseo
     $ipDestino = validacionIp "Ingrese la IP a la que apuntara ${hostname}.${dominio} : "
 
     try {
@@ -72,9 +66,22 @@ function ConfigurarDns {
     } catch {
         Write-Host "Error en la configuracion: $($_.Exception.Message)" -ForegroundColor Red
     }
-} # Asegúrate de que esta llave de cierre exista
+} 
 
-# 3. CUERPO PRINCIPAL DEL SCRIPT
+function borrarDominio{
+    $borrar = read-host "ingrese el dominio que desea borrar (ej: reprobados.com)"
+    if (get-DnsServerZone -name $borrar -erroraction silentlycontinue){
+        try{
+            remove-DnsServerZone -name $borrar -force
+            write-host "el dominio $borrar a sido borrado correctamente" -foregroundcolor green
+        } catch{
+            write-host "error al eliminar el dominio: $($_.exception.message)" -foregroundcolor red
+        }
+    }else{
+        write-host "error: el dominio $borrar no existe en el servidor"
+    }
+}
+
 do {
     Write-Host "`n--- MENU DNS ---" -ForegroundColor Yellow
     Write-Host "[1] Verificar Instalacion"
@@ -91,7 +98,6 @@ do {
     }
 } while ($opc -ne "salir")
 
-# --- MENU PRINCIPAL ---
 do {
     Write-Host "`n======================================================================" -ForegroundColor Yellow
     Write-Host "                           SERVIDOR DNS                               "
@@ -100,8 +106,9 @@ do {
     Write-Host "[2] - INSTALAR SERVICIO DNS"
     Write-Host "[3] - REMOVER SERVICIO DNS"
     Write-Host "[4] - CONFIGURAR ZONA Y REGISTROS (reprobados.com)"
-    Write-Host "[5] - MONITOREO Y PRUEBAS"
-    Write-Host "[6] - SALIR"
+    write-Host "[5] - BORRAR DOMINIO"
+    Write-Host "[6] - MONITOREO Y PRUEBAS"
+    Write-Host "[7] - SALIR"
 
     $opc = Read-Host "`nIngrese una opción"
 
@@ -113,7 +120,8 @@ do {
         "2" { Install-WindowsFeature DNS -IncludeManagementTools }
         "3" { Uninstall-WindowsFeature DNS -Remove }
         "4" { ConfigurarDns }
-        "5" { MonitoreoDns }
-        "6" { $opc = "salir" }
+        "5" {borrarDominio}
+        "6" { MonitoreoDns }
+        "7" { $opc = "salir" }
     }
 } while ($opc -ne "salir")
