@@ -77,6 +77,81 @@ function desinstalacion{
 function configuracionDhcp {
     import-module dhcpserver -force
     
+	# 1. SIEMPRE define las funciones de apoyo al principio del archivo
+function validacionIp {
+    param([string]$mensaje, [bool]$opcional = $false)
+    do {
+        $ip = read-host $mensaje
+        if ($opcional -and [string]::IsNullOrWhiteSpace($ip)) { return $null }
+
+        # Validamos formato IPv4
+        if ($ip -match '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$') {
+            $octetos = $ip.Split('.')
+            $errorCero = $false
+            foreach ($octeto in $octetos) {
+                if ($octeto.Length -gt 1 -and $octeto.StartsWith("0")) {
+                    $errorCero = $true; break
+                }
+            }
+            if ($errorCero) {
+                write-host "Error: No ceros a la izquierda." -foregroundcolor red
+                continue
+            }
+            return $ip
+        } else {
+            write-host "Formato invalido. Reintente." -foregroundcolor red
+        }
+    } while ($true)
+}
+
+function configuracionDhcp {
+    import-module dhcpserver -force
+    write-host "===CONFIGURACION DEL SERVICIO DHCP===" -foregroundcolor darkblue
+
+    $nombreScope = read-host "Ingrese un nombre para el scope" 
+    
+    # Llamada a IP Inicial
+    $rangoI = validacionIp "IP Inicial del rango (IP Servidor): "
+    if ($null -eq $rangoI) { return } # Seguridad
+    
+    $prefijoI = $rangoI.split('.')[0..2] -join '.'
+
+    # ... (Aquí va tu código de New-NetIPAddress que ya tenías) ...
+
+    # Bucle para IP Final
+    do {
+        $rangoF = validacionIp "IP final del rango: "
+        
+        # PROTECCIÓN: Solo hacemos split si rangoF tiene algo
+        if ($null -ne $rangoF) {
+            $prefijoF = $rangoF.split('.')[0..2] -join '.'
+            
+            if ([version]$rangoI -ge [version]$rangoF) {
+                write-host "Error: IP Inicial debe ser menor a Final." -foregroundcolor red
+                $rangoF = $null # Forzamos repetir
+            } elseif ($prefijoI -ne $prefijoF) {
+                write-host "Error: Deben estar en la misma subred ($prefijoI.x)" -foregroundcolor red
+                $rangoF = $null
+            }
+        }
+    } while ($null -eq $rangoF)
+
+    # ... (Resto de tu configuración de Gateway opcional y DNS) ...
+    $gateway = read-host "IP Gateway (Enter para saltar)"
+    
+    # CREACIÓN DEL SCOPE (Asegúrate de que las variables existan)
+    try {
+        $redId = "$prefijoI.0"
+        Add-DhcpServerv4Scope -Name $nombreScope -StartRange "$prefijoI.10" -EndRange $rangoF -SubnetMask "255.255.255.0"
+        
+        if (-not [string]::IsNullOrWhiteSpace($gateway)) {
+            Set-DhcpServerv4OptionValue -ScopeId $redId -OptionId 3 -Value $gateway
+        }
+        write-host "¡Scope configurado con éxito!" -foregroundcolor green
+    } catch {
+        write-host "Error al crear scope: $($_.Exception.Message)" -foregroundcolor red
+    }
+}
     # ... (Mantén tu función validacionIp aquí adentro como la tienes) ...
 
     write-host "=== CONFIGURACION DEL SERVICIO DHCP ===" -foregroundcolor darkblue
