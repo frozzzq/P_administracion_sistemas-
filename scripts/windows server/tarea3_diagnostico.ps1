@@ -68,7 +68,55 @@ function borrarDominio{
         write-host "error: el dominio $borrar no existe en el servidor"
     }
 }
+function MonitoreoDns {
+    Write-Host "`n=== MODULO DE MONITOREO Y VALIDACION ===" -ForegroundColor Cyan
+    
+    # 1. Verificación de Estado del Servicio
+    $servicio = Get-Service -Name DNS -ErrorAction SilentlyContinue
+    if ($servicio.Status -eq "Running") {
+        Write-Host "[OK] El servicio DNS esta operando correctamente." -ForegroundColor Green
+    } else {
+        Write-Host "[ERROR] El servicio DNS no esta iniciado." -ForegroundColor Red
+        return
+    }
 
+    # 2. Entrada de datos para la prueba
+    $dominioTest = Read-Host "Ingrese el dominio a validar (ej: reprobados.com)"
+    if ([string]::IsNullOrWhiteSpace($dominioTest)) { $dominioTest = "reprobados.com" }
+    
+    $hostTest = Read-Host "Ingrese el host a validar (ej: www)"
+    if ([string]::IsNullOrWhiteSpace($hostTest)) { $hostTest = "www" }
+    
+    $nombreCompleto = "${hostTest}.${dominioTest}"
+
+    # 3. Prueba de Resolución (nslookup)
+    Write-Host "`nEjecutando nslookup para $nombreCompleto..." -ForegroundColor Yellow
+    # Capturamos la salida del comando
+    $lookup = Resolve-DnsName -Name $nombreCompleto -Server 127.0.0.1 -ErrorAction SilentlyContinue
+    
+    if ($lookup) {
+        $ipDevuelta = $lookup.IPAddress
+        Write-Host "[EXITO] nslookup resolvió $nombreCompleto en la IP: $ipDevuelta" -ForegroundColor Green
+        
+        # 4. Prueba de Ping y Verificación de IP
+        Write-Host "Ejecutando ping para verificar respuesta..." -ForegroundColor Yellow
+        $ping = Test-Connection -ComputerName $nombreCompleto -Count 1 -ErrorAction SilentlyContinue
+        
+        if ($ping) {
+            $ipPing = $ping.IPV4Address.IPAddressToString
+            Write-Host "[EXITO] Ping respondio desde $ipPing" -ForegroundColor Green
+            
+            # Captura de evidencia: Comparación de IPs
+            if ($ipDevuelta -eq $ipPing) {
+                Write-Host "EVIDENCIA: La IP devuelta coincide con la maquina referenciada ($ipDevuelta)." -ForegroundColor Cyan -BackgroundColor DarkBlue
+            }
+        } else {
+            Write-Host "[AVISO] El nombre resuelve pero el host no responde al ping (verifique Firewall)." -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "[FALLO] No se pudo resolver el nombre $nombreCompleto en el DNS local." -ForegroundColor Red
+    }
+}
 #do {
  #   Write-Host "`n--- MENU DNS ---" -ForegroundColor Yellow
   #  Write-Host "[1] Verificar Instalacion"
