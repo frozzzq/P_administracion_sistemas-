@@ -4,9 +4,11 @@ Write Host "====================================================================
 
 
 do{
-    write host "[1] - VERIFICAR INSTALACION DNS"
-    write host "[2] - INSTALAR SERVICIO DNS"
-    write host "[3] - REMOVER SERVICIO DNS"
+    write-host "[1] - VERIFICAR INSTALACION DNS"
+    write-host "[2] - INSTALAR SERVICIO DNS"
+    write-host "[3] - REMOVER SERVICIO DNS"
+    write-host "[4] - CONFIGURAR IP"
+    write-host "[5] - MONITOREO"
 
     $opc = Read-host "ingrese una opcion:"  
 
@@ -22,11 +24,31 @@ do{
         }
 
         2{
-            install-WindowsFeature DNS
+            $verificar = get-WindowsFeature DNS
+            if ($verificar.Installed){
+                write-host "servicio instalado, el servicio no necesita ser instalado" -ForegroundColor Yellow 
+            }else{
+                write-host "instalando servicio..."
+                install-WindowsFeature DNS
+            }
         }
             
         3{
-            remove-WindowsFeature DNS
+            $verificar = get-WindowsFeature DNS
+            if ($verificar.Installed){
+                remove-WindowsFeature DNS
+                write-host "servicio removido correctamente!" -ForegroundColor Green
+            }else{
+                write-host "el servicio no esta instalado!, ingrese otra opcion" -ForegroundColor Yellow
+            }
+        }
+
+        4{
+
+
+
+
+
         }
     }
 

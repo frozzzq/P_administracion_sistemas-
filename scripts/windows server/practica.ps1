@@ -74,139 +74,69 @@ function desinstalacion{
 
 
 
-function configuracionDhcp{
-	import-module dhcpserver -force
-	function validacionIp {
-    	param([string]$mensaje, [bool]$opcional = $false)
-    	do {
-        	$ip = read-host $mensaje
-        	if ($opcional -and [string]::IsNullOrWhiteSpace($ip)) { return $null }
+function configuracionDhcp {
+    import-module dhcpserver -force
+    
+    # ... (Mantén tu función validacionIp aquí adentro como la tienes) ...
 
-        	if ($ip -match '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$') {
-            
-            	$octetos = $ip.Split('.')
-            	$errorCero = $false
+    write-host "=== CONFIGURACION DEL SERVICIO DHCP ===" -foregroundcolor darkblue
 
-            	foreach ($octeto in $octetos) {
-                	if ($octeto.Length -gt 1 -and $octeto.StartsWith("0")) {
-                    	$errorCero = $true
-                    	break
-                	}
-            	}
+    $nombreScope = read-host "Ingrese un nombre para el scope" 
+    $rangoI = validacionIp "IP Inicial del rango (IP del Servidor)"
+    $prefijoI = $rangoI.split('.')[0..2] -join '.'
+    
+    # --- Configuración de IP Fija en el Servidor ---
+    write-host "Configurando IP fija en el servidor ($rangoI)..." -foregroundcolor yellow
+    try {
+        # ¡OJO! Asegúrate de que tu interfaz se llame "Ethernet 2"
+        remove-netipaddress -interfacealias "Ethernet 2" -confirm:$false -erroraction silentlycontinue
+        new-netipaddress -interfacealias "Ethernet 2" -ipaddress $rangoI -prefixlength 24 -erroraction silentlycontinue
+        set-dhcpserverv4binding -bindingstate $true -interfacealias "Ethernet 2"
+    } catch {
+        write-host "Aviso: No se pudo cambiar la IP (quizás ya está configurada): $($_.exception.message)" -foregroundcolor yellow
+    }
 
-            	if ($errorCero) {
-                	write-host "error: no se permiten ceros a la izquierda (ej. use '1' en lugar de '01')" -foregroundcolor red
-                	continue
-            	}
+    # --- Cálculo de Rango y Máscara ---
+    $rangoDhcpInicio = "$prefijoI.$([int]($rangoI.split('.')[3]) + 1)"
+    do {
+        $rangoF = validacionIp "IP final del rango"
+        $prefijoF = $rangoF.split('.')[0..2] -join '.'
+        if ([version]$rangoI -ge [version]$rangoF) { write-host "Error: IP inicial mayor a final" -foregroundcolor red }
+    } while ([version]$rangoI -ge [version]$rangoF -or $prefijoI -ne $prefijoF)
 
-             	$primerOcteto = [int]$octetos[0]
-            
-            	if ($ip -eq "0.0.0.0") { write-host "error: 0.0.0.0 reservada" -foregroundcolor red }
-            	elseif ($ip -eq "255.255.255.255") { write-host "error: Global Broadcast" -foregroundcolor red }
-            	elseif ($primerOcteto -eq 127) { write-host "error: Rango Loopback" -foregroundcolor red }
-            	elseif ($primerOcteto -ge 224) { write-host "error: IP Multicast o Reservada ($primerOcteto)" -foregroundcolor red }
-            	else { return $ip }
-        	}
-        	else {
-            	write-host "formato ipv4 invalido o fuera de rango (0-255). reintente" -foregroundcolor red
-        	}
-    	} while ($true)
-}
+    $redId = $prefijoI + ".0"
+    $mascara = "255.255.255.0" # Simplificado para el ejemplo
 
+    # --- Captura de Datos Opcionales ---
+    $dns = validacionIp "Servidor DNS (Enter para saltar)" $true
+    
+    # AQUÍ ESTÁ EL CAMBIO: El gateway se guarda pero NO se aplica todavía
+    $gateway = read-host "Ingrese la IP del Gateway (Enter para saltar)"
+    
+    $tiempolease = read-host "Ingrese tiempo de concesion (ej: 08:00:00)"
+    if ([string]::IsNullOrWhiteSpace($tiempolease)) { $tiempolease = "08:00:00" }
 
-	write-host "===CONFIGURACION DEL SERVICIO DHCP===" -foregroundcolor darkblue
+    # --- Aplicación de Configuración ---
+    write-host "Aplicando configuracion..." -foregroundcolor cyan
+    try {
+        # 1. CREAR EL SCOPE (Esto es lo primero)
+        add-DhcpServerv4Scope -Name $nombreScope -StartRange $rangoDhcpInicio -EndRange $rangoF -SubnetMask $mascara -LeaseDuration ([timespan]$tiempolease) -State "Active"
 
-	$nombreScope = read-host "Ingrese un nombre para el scope: " 
+        # 2. APLICAR DNS SI EXISTE
+        if (-not [string]::IsNullOrWhiteSpace($dns)) {
+            set-dhcpserverv4optionvalue -scopeid $redId -dnsserver $dns -force
+        }
 
-	$rangoI = validacionIp "IP Inicial del rango: "
-	$prefijoI = $rangoI.split('.')[0..2] -join '.'
-	$octetoI = $rangoI.split('.')
+        # 3. APLICAR GATEWAY SI EXISTE (Ahora sí funciona porque el Scope ya existe)
+        if (-not [string]::IsNullOrWhiteSpace($gateway)) {
+            set-dhcpserverv4optionvalue -scopeid $redId -optionid 3 -value $gateway
+            write-host "Gateway configurado: $gateway" -foregroundcolor green
+        }
 
-	write-host "configurando la ip fija del servidor ($rangoI)..." -foregroundcolor yellow
-	try{
-		$interfaz = (get-netadapter | where-object status -eq "Up" | select-object -first 1).name
-		remove-netipaddress -interfacealias "Ethernet 2" -confirm:$false -erroraction silentlycontinue
-		new-netipaddress -interfacealias "Ethernet 2" -ipaddress $rangoI -prefixlength 24 -erroraction silentlycontinue
-		set-dhcpserverv4binding -bindingstate $true -interfacealias "Ethernet 2"
-		write-host "servidor ahora tiene la ip: $rangoI" -foregroundcolor green
-	} catch{
-		write-host "no se puede cambiar la ip del servidor: $($_.exception.message)" -foregroundcolor yellow
-	}
-
-	$ipSplit = $rangoI.split('.')
-	$ultimoOcteto = [int]$ipSplit[3] + 1
-	$rangoDhcpInicio = "$($ipSplit[0..2] -join '.').$ultimoOcteto"
-	write-host "el rango de clientes empezara en: $rangoDhcpInicio" -foregroundcolor gray
-	do{
-		$rangoF = validacionIp "IP final del rango: "
-		$prefijoF = $rangoF.split('.')[0..2] -join '.'
-		$octetoF = $rangoF.split('.')
-		if ([version]$rangoI -ge [version]$rangoF ){
-			write-host "error, la ip inicial ($rangoI) no puede ser mayor que el rango final ($rangoF)" -foregroundcolor red	
-		}
-		elseif ($prefijoI -ne $prefijoF){
-			write-host "error, la ip inicial debe ser del mismo rango que la ip final" -foregroundcolor red
-		}
-		else {
-			write-host "las IPs son validas" -foregroundcolor green
-			write-host "procediendo..." -foregroundcolor cyan
-			write-host "CALCULANDO ID DE RED..." -foregroundcolor yellow
-			$redId = $prefijoI + ".0"
-			
-			write-host "CALCULANDO MASCARA DE RED..." -foregroundcolor yellow
-			if ($octetoI[0..2] -join '.' -eq $octetoF[0..2] -join '.'){
-				$mascara = "255.255.255.0"
-			}
-			elseif ($octetoI[0..1] -join '.' -eq $octetoF[0..1] -join '.'){
-				$mascara = "255.255.0.0"
-			}
-			else{
-				$mascara = "255.0.0.0"
-			}			
-			write-host "mascara calculada: $mascara" -foregroundcolor gray
-		
-		}
-	} while([version]$rangoI -ge [version]$rangoF -or $prefijoI -ne $prefijoF)
-	
-
-
-	$dns	= validacionIp "servidor DNS:	"
-	if (-not [string]::isnullorwhitespace($dns)) {
-		
-		write-host "dns configurado: $dns" -foregroundcolor green
-	}
-
-	$gateway = read-host "ingrese la ip del gateway/puerta de enlace (deje en blanco para saltar"
-	if (-not [string]::isnullorwhitespace($gateway)) {
-		set-dhcpserverv4optionvalue -scopeid $redId -optionid 3 -value $gateway
-		write-host "gateway configurado: $gateway" -foregroundcolor green
-	}
-
-	write-host "ejemplo de lease time: 08:00:00 (8 horas) 'dias.hrs.min.seg'"
-	$tiempolease = read-host "ingrese tiempo de concesion: " 
-	
-	write-host "aplicando configuracion..." -foregroundcolor cyan
-
-	$params = @{
-		Name		= $nombreScope
-		StartRange	= $rangoDhcpInicio
-		EndRange	= $rangoF
-		SubnetMask	= $mascara
-		LeaseDuration	= [timespan]$tiempolease
-		State		= "Active"
-	}
-
-
-	try{
-		add-DhcpServerv4Scope @params
-	
-		set-dhcpserverv4optionvalue -scopeid $redId -dnsserver $dns -force
-		write-host "configuracion exitosa!" -foregroundcolor green
-	}
-	catch{
-		write-host "error: $($_.Exception.message)" -foregroundcolor red
-	}
-
+        write-host "¡Configuracion exitosa!" -foregroundcolor green
+    } catch {
+        write-host "Error critico: $($_.Exception.message)" -foregroundcolor red
+    }
 }
 
 function monitoreo{
