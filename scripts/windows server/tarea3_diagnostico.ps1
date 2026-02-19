@@ -87,7 +87,7 @@ function borrarDominio{
 #} while ($opc -ne "salir")
 
 do {
-    Write-Host "`n======================================================================" -ForegroundColor Yellow
+    Write-Host "======================================================================" -ForegroundColor Yellow
     Write-Host "                           SERVIDOR DNS                               "
     Write-Host "======================================================================" -ForegroundColor Yellow
     Write-Host "[1] - VERIFICAR INSTALACION DNS"
