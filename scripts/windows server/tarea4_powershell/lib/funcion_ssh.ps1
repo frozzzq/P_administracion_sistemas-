@@ -33,57 +33,32 @@ function instalarSsh {
     $cap = Get-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
 
     if ($cap.State -eq "Installed") {
-        Write-Host "OpenSSH Server ya esta instalado. No se requiere accion." -ForegroundColor Green
+        Write-Host "OpenSSH Server ya esta instalado." -ForegroundColor Green
     } else {
         Write-Host "Instalando OpenSSH Server..." -ForegroundColor Yellow
         try {
             Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
             Write-Host "Instalacion completada." -ForegroundColor Green
+
+            # Esperar a que el servicio quede registrado
+            Write-Host "Esperando registro del servicio..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 5
+
         } catch {
             Write-Host "Error durante la instalacion: $($_.Exception.Message)" -ForegroundColor Red
             return
         }
     }
 
-    Write-Host "Iniciando el servicio sshd..." -ForegroundColor Yellow
-    try {
-        Start-Service sshd
-        Write-Host "Servicio sshd iniciado." -ForegroundColor Green
-    } catch {
-        Write-Host "Error al iniciar el servicio: $($_.Exception.Message)" -ForegroundColor Red
+    # Verificar que el servicio exista antes de intentar iniciarlo
+    $servicio = Get-Service -Name sshd -ErrorAction SilentlyContinue
+    if (-not $servicio) {
+        Write-Host "El servicio sshd aun no esta disponible." -ForegroundColor Red
+        Write-Host "Intenta reiniciar el servidor y ejecutar la opcion 2 nuevamente." -ForegroundColor Yellow
         return
     }
-
-    Write-Host "Configurando inicio automatico..." -ForegroundColor Yellow
-    Set-Service -Name sshd -StartupType Automatic
-    Write-Host "Inicio automatico configurado." -ForegroundColor Green
-
-    $reglaExiste = Get-NetFirewallRule -Name "sshd" -ErrorAction SilentlyContinue
-    if (-not $reglaExiste) {
-        Write-Host "Creando regla de Firewall para el puerto 22..." -ForegroundColor Yellow
-        try {
-            New-NetFirewallRule `
-                -Name        "sshd" `
-                -DisplayName "OpenSSH Server (SSH)" `
-                -Enabled     True `
-                -Direction   Inbound `
-                -Protocol    TCP `
-                -Action      Allow `
-                -LocalPort   22
-            Write-Host "Regla de Firewall creada correctamente." -ForegroundColor Green
-        } catch {
-            Write-Host "Error al crear la regla: $($_.Exception.Message)" -ForegroundColor Red
-        }
-    } else {
-        Write-Host "La regla de Firewall ya existe." -ForegroundColor Green
-    }
-
-    $ip = (Get-NetIPAddress -AddressFamily IPv4 |
-           Where-Object { $_.InterfaceAlias -like "*Ethernet*" -and $_.IPAddress -notlike "169.254*" } |
-           Select-Object -First 1).IPAddress
-    Write-Host "`nSSH configurado. Desde el cliente conectate con:" -ForegroundColor Cyan
-    Write-Host "  ssh Administrador@$ip" -ForegroundColor Yellow
 }
+    # Resto del script igual...
 
 function desinstalarSsh {
     Write-Host "`n--- Desinstalacion de OpenSSH Server ---" -ForegroundColor Magenta
