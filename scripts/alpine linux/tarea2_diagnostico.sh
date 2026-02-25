@@ -96,51 +96,64 @@ configuracionDhcp() {
     printf "Ingrese un nombre para el scope: "
     read nombreScope
 
-   
     rangoI=$(validacionIp "IP Inicial del rango (Fija para Servidor eth1): ")
     prefijoI=$(echo $rangoI | cut -d. -f1-3)
     
-    echo -e "${YELLOW}configurando la ip fija del servidor ($rangoI)...${NC}"
+    echo -e "${YELLOW}Configurando la IP fija del servidor ($rangoI)...${NC}"
     ip addr add $rangoI/24 dev eth1 2>/dev/null
     ip link set eth1 up 2>/dev/null
 
     ultimo=$(echo $rangoI | cut -d. -f4)
     rangoDhcpInicio="$prefijoI.$((ultimo + 1))"
-    echo -e "${GRAY}el rango de clientes empezara en: $rangoDhcpInicio${NC}"
 
     while true; do
         rangoF=$(validacionIp "IP final del rango: ")
         prefijoF=$(echo $rangoF | cut -d. -f1-3)
-        
         ultimoF=$(echo $rangoF | cut -d. -f4)
+
         if [ $ultimo -ge $ultimoF ]; then
-            echo -e "${RED}error, la inicial ($rangoI) no puede ser mayor a la final ($rangoF)${NC}"
+            echo -e "${RED}Error: La IP inicial ($rangoI) no puede ser mayor a la final ($rangoF)${NC}"
         elif [ "$prefijoI" != "$prefijoF" ]; then
-            echo -e "${RED}error, deben pertenecer a la misma subred ($prefijoI.x)${NC}"
+            echo -e "${RED}Error: Deben pertenecer a la misma subred ($prefijoI.x)${NC}"
         else
-            echo -e "${GREEN}las IPs son validas${NC}"
             redId="$prefijoI.0"
             break
         fi
     done
 
-    dns=$(validacionIp "servidor DNS (ej: 8.8.8.8): ")
-    [ -z "$dns" ] && dns="8.8.8.8"
+    # --- CAMBIO: DNS PRIMARIO (OBLIGATORIO) ---
+    # validacionIp no deja salir hasta que se ingrese una IP válida
+    dns1=$(validacionIp "Ingrese IP del DNS Primario (OBLIGATORIO): ")
 
-    printf "${CYAN}ingrese la ip del gateway (deje en blanco para saltar): ${NC}"
+    # --- CAMBIO: DNS SECUNDARIO (OPCIONAL) ---
+    printf "${YELLOW}Ingrese IP del DNS Secundario (Opcional, presione ENTER para saltar): ${NC}"
+    read dns2
+
+    # Construir la cadena de DNS para el JSON de Kea
+    if [ -n "$dns2" ]; then
+        # Si no está vacío, unimos ambos con una coma
+        dns_config="$dns1, $dns2"
+        echo -e "${GREEN}Configurados DNS: $dns1 y $dns2${NC}"
+    else
+        # Si está vacío, solo usamos el primario
+        dns_config="$dns1"
+        echo -e "${GREEN}Configurado DNS único: $dns1${NC}"
+    fi
+
+    printf "Ingrese la ip del gateway (deje en blanco para saltar): "
     read gateway
 
-    printf "${CYAN}ingrese tiempo de concesion (segundos, ej: 28800): ${NC}"
+    printf "Ingrese tiempo de concesion (segundos, ej: 28800): "
     read tiempolease
     [ -z "$tiempolease" ] && tiempolease="28800"
 
-    echo -e "${CYAN}generando configuracion JSON...${NC}"
-
-  
+    # Preparar opción de Gateway
     OPT_GW=""
     if [ -n "$gateway" ]; then
         OPT_GW=", { \"name\": \"routers\", \"data\": \"$gateway\" }"
     fi
+
+    echo -e "${BLUE}Generando archivo de configuración /etc/kea/kea-dhcp4.conf...${NC}"
 
     cat <<EOF > /etc/kea/kea-dhcp4.conf
 {
@@ -158,7 +171,7 @@ configuracionDhcp() {
             "subnet": "$redId/24",
             "pools": [ { "pool": "$rangoDhcpInicio - $rangoF" } ],
             "option-data": [
-                { "name": "domain-name-servers", "data": "$dns" }$OPT_GW
+                { "name": "domain-name-servers", "data": "$dns_config" }$OPT_GW
             ]
         }
     ]

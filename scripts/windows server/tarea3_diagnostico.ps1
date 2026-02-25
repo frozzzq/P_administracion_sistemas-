@@ -71,7 +71,7 @@ function borrarDominio{
 function MonitoreoDns {
     Write-Host "`n=== MODULO DE MONITOREO Y VALIDACION ===" -ForegroundColor Cyan
     
-    # 1. Verificación de Estado del Servicio
+   
     $servicio = Get-Service -Name DNS -ErrorAction SilentlyContinue
     if ($servicio.Status -eq "Running") {
         Write-Host "[OK] El servicio DNS esta operando correctamente." -ForegroundColor Green
@@ -80,7 +80,7 @@ function MonitoreoDns {
         return
     }
 
-    # 2. Entrada de datos para la prueba
+ 
     $dominioTest = Read-Host "Ingrese el dominio a validar (ej: reprobados.com)"
     if ([string]::IsNullOrWhiteSpace($dominioTest)) { $dominioTest = "reprobados.com" }
     
@@ -89,16 +89,15 @@ function MonitoreoDns {
     
     $nombreCompleto = "${hostTest}.${dominioTest}"
 
-    # 3. Prueba de Resolución (nslookup)
     Write-Host "`nEjecutando nslookup para $nombreCompleto..." -ForegroundColor Yellow
-    # Capturamos la salida del comando
+
     $lookup = Resolve-DnsName -Name $nombreCompleto -Server 127.0.0.1 -ErrorAction SilentlyContinue
     
     if ($lookup) {
         $ipDevuelta = $lookup.IPAddress
         Write-Host "[EXITO] nslookup resolvió $nombreCompleto en la IP: $ipDevuelta" -ForegroundColor Green
         
-        # 4. Prueba de Ping y Verificación de IP
+       
         Write-Host "Ejecutando ping para verificar respuesta..." -ForegroundColor Yellow
         $ping = Test-Connection -ComputerName $nombreCompleto -Count 1 -ErrorAction SilentlyContinue
         
@@ -106,7 +105,7 @@ function MonitoreoDns {
             $ipPing = $ping.IPV4Address.IPAddressToString
             Write-Host "[EXITO] Ping respondio desde $ipPing" -ForegroundColor Green
             
-            # Captura de evidencia: Comparación de IPs
+          
             if ($ipDevuelta -eq $ipPing) {
                 Write-Host "EVIDENCIA: La IP devuelta coincide con la maquina referenciada ($ipDevuelta)." -ForegroundColor Cyan -BackgroundColor DarkBlue
             }
