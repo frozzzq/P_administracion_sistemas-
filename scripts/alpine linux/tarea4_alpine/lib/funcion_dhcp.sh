@@ -82,6 +82,10 @@ configuracionDhcp() {
     rangoI=$(validacionIpDhcp "IP Inicial del rango (Fija para Servidor eth1): ")
     prefijoI=$(echo $rangoI | cut -d. -f1-3)
 
+    # DNS primario = IP del propio servidor
+    dnsServidor=$rangoI
+    echo -e "${CYAN}DNS primario asignado automaticamente al servidor: $dnsServidor${NC}"
+
     echo -e "${YELLOW}Configurando la IP fija del servidor ($rangoI)...${NC}"
     ip addr add $rangoI/24 dev eth1 2>/dev/null
     ip link set eth1 up 2>/dev/null
@@ -104,17 +108,16 @@ configuracionDhcp() {
         fi
     done
 
-    dns1=$(validacionIpDhcp "Ingrese IP del DNS Primario (OBLIGATORIO): ")
-
+    # DNS secundario opcional
     printf "${YELLOW}Ingrese IP del DNS Secundario (Opcional, ENTER para saltar): ${NC}"
     read dns2
 
     if [ -n "$dns2" ]; then
-        dns_config="$dns1, $dns2"
-        echo -e "${GREEN}Configurados DNS: $dns1 y $dns2${NC}"
+        dns_config="$dnsServidor, $dns2"
+        echo -e "${GREEN}DNS configurado: primario=$dnsServidor secundario=$dns2${NC}"
     else
-        dns_config="$dns1"
-        echo -e "${GREEN}Configurado DNS unico: $dns1${NC}"
+        dns_config="$dnsServidor"
+        echo -e "${GREEN}DNS configurado: primario=$dnsServidor${NC}"
     fi
 
     printf "Ingrese la IP del gateway (ENTER para saltar): "
@@ -130,6 +133,7 @@ configuracionDhcp() {
     fi
 
     echo -e "${BLUE}Generando archivo /etc/kea/kea-dhcp4.conf...${NC}"
+    mkdir -p /etc/kea
     cat > /etc/kea/kea-dhcp4.conf <<CONF
 {
 "Dhcp4": {
