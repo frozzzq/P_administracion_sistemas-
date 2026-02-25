@@ -1,5 +1,5 @@
 . "$PSScriptRoot\lib\funcion_ssh.ps1"
-. "$PSScriptRoot\lib\funcion_dhcp.ps1"
+. "$PSScriptRoot\lib\funciones_dhcp.ps1"
 . "$PSScriptRoot\lib\funcion_dns.ps1"
 
 function menu {
