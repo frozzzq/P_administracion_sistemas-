@@ -19,9 +19,8 @@ do {
 
     switch ($opcion) {
         "1" { menuSsh }
-        "2" { Write-Host "Módulo DHCP pendiente de integración." -ForegroundColor Gray }
-        "3" { Write-Host "Módulo DNS pendiente de integración."  -ForegroundColor Gray }
-        "4" { Write-Host "Saliendo..." -ForegroundColor Cyan; break }
+        "2" { menuDhcp}
+        "3" { menuDns }
         default { Write-Host "Opción inválida." -ForegroundColor Red }
     }
 

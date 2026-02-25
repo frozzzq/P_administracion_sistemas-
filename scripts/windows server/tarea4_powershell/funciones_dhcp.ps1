@@ -251,3 +251,27 @@ function monitoreo{
 
 	}
 }
+function menuDhcp {
+    Write-Host "`n========================================" -ForegroundColor Blue
+    Write-Host "        GESTIÓN DE SERVICIO DHCP         " -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Blue
+    Write-Host "1. Verificar instalacion"              -ForegroundColor Yellow
+    Write-Host "2. instalar servicio"            -ForegroundColor Yellow
+    Write-Host "3. desinstalar servicio"                      -ForegroundColor Yellow
+    Write-Host "4. Volver al menú principal"             -ForegroundColor Yellow
+    Write-Host "5. borrar scopes"             -ForegroundColor Yellow
+    Write-Host "6. monitoreo"             -ForegroundColor Yellow
+    Write-Host "7. volver a menu principal"             -ForegroundColor Yellow
+
+    $op = Read-Host "`nElige una opción"
+    switch ($op) {
+        "1" { verificarInstalacion }
+        "2" { instalacion }
+        "3" { desinstalacion }
+        "4" { configuracionDhcp }
+        "5" { borrarScopes }
+        "6" { monitoreo }
+        "7" { return }
+        default { Write-Host "Opción inválida." -ForegroundColor Red }
+    }
+}
