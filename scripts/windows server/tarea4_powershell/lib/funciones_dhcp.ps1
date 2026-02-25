@@ -1,86 +1,8 @@
-function verificarInstalacion {
-	write-host "Verificando la instalacion DHCP..." -foregroundcolor yellow
-	$feature = get-windowsfeature -name DHCP
-
-	if ($feature.installed) 
-	{
-		write-host "SERVICIO DHCP INSTALADO" -foregroundcolor green
-	}
-	else 
-	{
-		write-host "SERVICIO DHCP NO INSTALADO" -foregroundcolor red
-		write-host "sugerencia!... use la opcion de instalar el servicio" -foregroundcolor yellow
-	}
-}
-
-function instalacion {
-
-	write-host " INICIANDO INSTALACION..." -foregroundcolor cyan
-	$check = get-windowsfeature -name DHCP
-
-	if ($check.installed) 
-	{
-		write-host "SERVICIO DHCP INSTALADO, (no es necesario una instalacion)" -foregroundcolor green
-	}
-	else 
-	{
-		try{
-			$resul = install-windowsfeature -name DHCP -includemanagementtools
-		
-			if($resul.restartneeded -eq "Yes"){
-				write-host "REINICIO REQUERIDO PARA COMPLETAR." -foregroundcolor yellow
-				$confirmar = read-host "desea reiniciar ahora? (si/no)"
-				if ($confirmar -eq "si") {restart-computer} 
-			}else{
-				write-host "SERVICIO DHCP INSTALADO CON EXITO!" -foregroundcolor green		
-
-			}
-		
-		}catch{
-			write-host "error al instalar" -foregroundcolor red
-		}
-	}
-}
-
-
-function desinstalacion{
-	write-host "INICIANDO DESINSTALACION..." -foregroundcolor darkmagenta
-	$check = get-windowsfeature -name DHCP
-	
-	if ($check.installed) 
-	{
-		write-host "deteniendo proceso en memoria..." foregroundcolor yellow
-		stop-service -name DHCPServer -force -erroraction silentlycontinue
-	
-		$res = uninstall-windowsfeature -name DHCP -includemanagementtools
-		if ($res.success){
-			write-host "desinstalacion exitosa!" -foregroundcolor green
-			if ($res.restartneeded -eq "Yes"){
-				write-host "advertencia: se necesita un reinicio" -foregroundcolor red
-			}
-		}
-	}
-	else 
-	{
-		write-host "servicio no instalado, por lo tanto no se puede desinstalar" -foregroundcolor red
-		
-	}
-}
-
-
-
-
-function configuracionDhcp {
-    import-module dhcpserver -force
-    
-	
-function validacionIp {
+function validacionIpDhcp {
     param([string]$mensaje, [bool]$opcional = $false)
     do {
-        $ip = read-host $mensaje
+        $ip = Read-Host $mensaje
         if ($opcional -and [string]::IsNullOrWhiteSpace($ip)) { return $null }
-
-       
         if ($ip -match '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$') {
             $octetos = $ip.Split('.')
             $errorCero = $false
@@ -90,180 +12,174 @@ function validacionIp {
                 }
             }
             if ($errorCero) {
-                write-host "Error: No ceros a la izquierda." -foregroundcolor red
+                Write-Host "Error: No ceros a la izquierda." -ForegroundColor Red
                 continue
             }
             return $ip
         } else {
-            write-host "Formato invalido. Reintente." -foregroundcolor red
+            Write-Host "Formato invalido. Reintente." -ForegroundColor Red
         }
     } while ($true)
 }
 
-function configuracionDhcp {
-    import-module dhcpserver -force
-    write-host "===CONFIGURACION DEL SERVICIO DHCP===" -foregroundcolor darkblue
+function verificarInstalacion {
+    Write-Host "Verificando la instalacion DHCP..." -ForegroundColor Yellow
+    $feature = Get-WindowsFeature -Name DHCP
+    if ($feature.Installed) {
+        Write-Host "SERVICIO DHCP INSTALADO" -ForegroundColor Green
+    } else {
+        Write-Host "SERVICIO DHCP NO INSTALADO" -ForegroundColor Red
+        Write-Host "sugerencia!... use la opcion de instalar el servicio" -ForegroundColor Yellow
+    }
+}
 
-    $nombreScope = read-host "Ingrese un nombre para el scope" 
-    
-  
-    $rangoI = validacionIp "IP Inicial del rango (IP Servidor): "
-    if ($null -eq $rangoI) { return }
-    
-    $prefijoI = $rangoI.split('.')[0..2] -join '.'
+function instalacion {
+    Write-Host "INICIANDO INSTALACION..." -ForegroundColor Cyan
+    $check = Get-WindowsFeature -Name DHCP
+    if ($check.Installed) {
+        Write-Host "SERVICIO DHCP YA INSTALADO, no es necesario reinstalar." -ForegroundColor Green
+    } else {
+        try {
+            $resul = Install-WindowsFeature -Name DHCP -IncludeManagementTools
+            if ($resul.RestartNeeded -eq "Yes") {
+                Write-Host "REINICIO REQUERIDO PARA COMPLETAR." -ForegroundColor Yellow
+                $confirmar = Read-Host "desea reiniciar ahora? (si/no)"
+                if ($confirmar -eq "si") { Restart-Computer }
+            } else {
+                Write-Host "SERVICIO DHCP INSTALADO CON EXITO!" -ForegroundColor Green
+            }
+        } catch {
+            Write-Host "error al instalar: $($_.Exception.Message)" -ForegroundColor Red
+        }
+    }
+}
 
-
-
-    do {
-        $rangoF = validacionIp "IP final del rango: "
-        
-       
-        if ($null -ne $rangoF) {
-            $prefijoF = $rangoF.split('.')[0..2] -join '.'
-            
-            if ([version]$rangoI -ge [version]$rangoF) {
-                write-host "Error: IP Inicial debe ser menor a Final." -foregroundcolor red
-                $rangoF = $null 
-            } elseif ($prefijoI -ne $prefijoF) {
-                write-host "Error: Deben estar en la misma subred ($prefijoI.x)" -foregroundcolor red
-                $rangoF = $null
+function desinstalacion {
+    Write-Host "INICIANDO DESINSTALACION..." -ForegroundColor DarkMagenta
+    $check = Get-WindowsFeature -Name DHCP
+    if ($check.Installed) {
+        Write-Host "deteniendo proceso en memoria..." -ForegroundColor Yellow
+        Stop-Service -Name DHCPServer -Force -ErrorAction SilentlyContinue
+        $res = Uninstall-WindowsFeature -Name DHCP -IncludeManagementTools
+        if ($res.Success) {
+            Write-Host "desinstalacion exitosa!" -ForegroundColor Green
+            if ($res.RestartNeeded -eq "Yes") {
+                Write-Host "advertencia: se necesita un reinicio" -ForegroundColor Red
             }
         }
-    } while ($null -eq $rangoF)
-
-   
-    $gateway = read-host "IP Gateway (Enter para saltar)"
-    
-  
-    try {
-        $redId = "$prefijoI.0"
-        Add-DhcpServerv4Scope -Name $nombreScope -StartRange "$prefijoI.10" -EndRange $rangoF -SubnetMask "255.255.255.0"
-        
-        if (-not [string]::IsNullOrWhiteSpace($gateway)) {
-            Set-DhcpServerv4OptionValue -ScopeId $redId -OptionId 3 -Value $gateway
-        }
-        write-host "¡Scope configurado con éxito!" -foregroundcolor green
-    } catch {
-        write-host "Error al crear scope: $($_.Exception.Message)" -foregroundcolor red
+    } else {
+        Write-Host "servicio no instalado, no se puede desinstalar" -ForegroundColor Red
     }
 }
 
+function configuracionDhcp {
+    Import-Module DHCPServer -Force
+    Write-Host "=== CONFIGURACION DEL SERVICIO DHCP ===" -ForegroundColor DarkBlue
 
-    write-host "=== CONFIGURACION DEL SERVICIO DHCP ===" -foregroundcolor darkblue
+    $nombreScope = Read-Host "Ingrese un nombre para el scope"
+    $rangoI = validacionIpDhcp "IP Inicial del rango (IP del Servidor)"
+    $prefijoI = $rangoI.Split('.')[0..2] -join '.'
 
-    $nombreScope = read-host "Ingrese un nombre para el scope" 
-    $rangoI = validacionIp "IP Inicial del rango (IP del Servidor)"
-    $prefijoI = $rangoI.split('.')[0..2] -join '.'
-    
-
-    write-host "Configurando IP fija en el servidor ($rangoI)..." -foregroundcolor yellow
+    Write-Host "Configurando IP fija en el servidor ($rangoI)..." -ForegroundColor Yellow
     try {
-       
-        remove-netipaddress -interfacealias "Ethernet 2" -confirm:$false -erroraction silentlycontinue
-        new-netipaddress -interfacealias "Ethernet 2" -ipaddress $rangoI -prefixlength 24 -erroraction silentlycontinue
-        set-dhcpserverv4binding -bindingstate $true -interfacealias "Ethernet 2"
+        Remove-NetIPAddress -InterfaceAlias "Ethernet 2" -Confirm:$false -ErrorAction SilentlyContinue
+        New-NetIPAddress -InterfaceAlias "Ethernet 2" -IPAddress $rangoI -PrefixLength 24 -ErrorAction SilentlyContinue
+        Set-DhcpServerv4Binding -BindingState $true -InterfaceAlias "Ethernet 2"
     } catch {
-        write-host "Aviso: No se pudo cambiar la IP (quizás ya está configurada): $($_.exception.message)" -foregroundcolor yellow
+        Write-Host "Aviso: No se pudo cambiar la IP: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 
-
-    $rangoDhcpInicio = "$prefijoI.$([int]($rangoI.split('.')[3]) + 1)"
+    $rangoDhcpInicio = "$prefijoI.$([int]($rangoI.Split('.')[3]) + 1)"
     do {
-        $rangoF = validacionIp "IP final del rango"
-        $prefijoF = $rangoF.split('.')[0..2] -join '.'
-        if ([version]$rangoI -ge [version]$rangoF) { write-host "Error: IP inicial mayor a final" -foregroundcolor red }
+        $rangoF = validacionIpDhcp "IP final del rango"
+        $prefijoF = $rangoF.Split('.')[0..2] -join '.'
+        if ([version]$rangoI -ge [version]$rangoF) {
+            Write-Host "Error: IP inicial mayor a final" -ForegroundColor Red
+        }
     } while ([version]$rangoI -ge [version]$rangoF -or $prefijoI -ne $prefijoF)
 
-    $redId = $prefijoI + ".0"
-    $mascara = "255.255.255.0" 
+    $redId   = $prefijoI + ".0"
+    $mascara = "255.255.255.0"
 
-   
-    $dns = validacionIp "Servidor DNS (Enter para saltar)" $true
-    
-   
-    $gateway = read-host "Ingrese la IP del Gateway (Enter para saltar)"
-    
-    $tiempolease = read-host "Ingrese tiempo de concesion (ej: 08:00:00)"
+    $dns     = validacionIpDhcp "Servidor DNS (Enter para saltar)" $true
+    $gateway = Read-Host "Ingrese la IP del Gateway (Enter para saltar)"
+
+    $tiempolease = Read-Host "Ingrese tiempo de concesion (ej: 08:00:00)"
     if ([string]::IsNullOrWhiteSpace($tiempolease)) { $tiempolease = "08:00:00" }
 
-    write-host "Aplicando configuracion..." -foregroundcolor cyan
+    Write-Host "Aplicando configuracion..." -ForegroundColor Cyan
     try {
-       
-        add-DhcpServerv4Scope -Name $nombreScope -StartRange $rangoDhcpInicio -EndRange $rangoF -SubnetMask $mascara -LeaseDuration ([timespan]$tiempolease) -State "Active"
-
-   
+        Add-DhcpServerv4Scope -Name $nombreScope -StartRange $rangoDhcpInicio -EndRange $rangoF -SubnetMask $mascara -LeaseDuration ([timespan]$tiempolease) -State "Active"
         if (-not [string]::IsNullOrWhiteSpace($dns)) {
-            set-dhcpserverv4optionvalue -scopeid $redId -dnsserver $dns -force
+            Set-DhcpServerv4OptionValue -ScopeId $redId -DnsServer $dns -Force
         }
-
-       
         if (-not [string]::IsNullOrWhiteSpace($gateway)) {
-            set-dhcpserverv4optionvalue -scopeid $redId -optionid 3 -value $gateway
-            write-host "Gateway configurado: $gateway" -foregroundcolor green
+            Set-DhcpServerv4OptionValue -ScopeId $redId -OptionId 3 -Value $gateway
+            Write-Host "Gateway configurado: $gateway" -ForegroundColor Green
         }
-
-        write-host "¡Configuracion exitosa!" -foregroundcolor green
+        Write-Host "Configuracion exitosa!" -ForegroundColor Green
     } catch {
-        write-host "Error critico: $($_.Exception.message)" -foregroundcolor red
+        Write-Host "Error critico: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
-function borrarScopes{
-	try{
-		Get-DhcpServerv4Scope | Remove-DhcpServerv4Scope -Force
-	}catch{
-		write-host "error al borrar scopes: $($_.exception.message)"
-	}
+
+function borrarScopes {
+    try {
+        Get-DhcpServerv4Scope | Remove-DhcpServerv4Scope -Force
+        Write-Host "Scopes eliminados correctamente." -ForegroundColor Green
+    } catch {
+        Write-Host "error al borrar scopes: $($_.Exception.Message)" -ForegroundColor Red
+    }
 }
 
-function monitoreo{
-	write-host "==================MONITOREO Y ESTADO DEL SERVICIO==================" -foregroundcolor blue
-	$servicio = get-service -name DHCPServer -Erroraction silentlycontinue
-	if ($servicio){
-		$color = if ($servicio.status -eq "Running") {"green"} else {"red"}
-		write-host "estado del servicio: " -nonewline
-		write-host "$($servicio.Status)" -foregroundcolor $color
-	} else{
-		write-host "el servicio dhcp no esta instalado correctamente" -foregroundcolor red
-		return
-	}
-
-	write-host "--------------------------------------------------------------------------"
-	write-host "equipos conectados (leases activos): " -foregroundcolor yellow
-	try{
-		$ambitos = get-dhcpserverv4scope -erroraction silentlycontinue
-		if ($ambitos) {
-			$hayleases = $false
-			foreach ($ambito in $ambitos){
-				$leases = get-dhcpserverv4lease -scopeid $ambito.scopeid -erroraction silentlycontinue
-				if ($leases) {
-					$leases | select-object ipaddress, clientid, hostname, leaseexpirytime | format-table -autosize
-					$hayleases = $true
-				}
-			}
-			if (-not $hayleases){
-				write-host "no hay equipos conectados actualmente" -foregroundcolor gray
-			}
-		} else{
-			write-host "no hay ambitos (scopes) configurados"
-		}
-	}catch{
-		write-host "no existe el servicio o no hay clientes disponibles" -foregroundcolor yellow
-
-	}
+function monitoreo {
+    Write-Host "================== MONITOREO DHCP ==================" -ForegroundColor Blue
+    $servicio = Get-Service -Name DHCPServer -ErrorAction SilentlyContinue
+    if ($servicio) {
+        $color = if ($servicio.Status -eq "Running") { "Green" } else { "Red" }
+        Write-Host "estado del servicio: " -NoNewline
+        Write-Host "$($servicio.Status)" -ForegroundColor $color
+    } else {
+        Write-Host "el servicio DHCP no esta instalado correctamente" -ForegroundColor Red
+        return
+    }
+    Write-Host "----------------------------------------------------"
+    Write-Host "equipos conectados (leases activos):" -ForegroundColor Yellow
+    try {
+        $ambitos = Get-DhcpServerv4Scope -ErrorAction SilentlyContinue
+        if ($ambitos) {
+            $hayleases = $false
+            foreach ($ambito in $ambitos) {
+                $leases = Get-DhcpServerv4Lease -ScopeId $ambito.ScopeId -ErrorAction SilentlyContinue
+                if ($leases) {
+                    $leases | Select-Object IPAddress, ClientId, HostName, LeaseExpiryTime | Format-Table -AutoSize
+                    $hayleases = $true
+                }
+            }
+            if (-not $hayleases) {
+                Write-Host "no hay equipos conectados actualmente" -ForegroundColor Gray
+            }
+        } else {
+            Write-Host "no hay ambitos (scopes) configurados"
+        }
+    } catch {
+        Write-Host "no existe el servicio o no hay clientes disponibles" -ForegroundColor Yellow
+    }
 }
+
 function menuDhcp {
     Write-Host "`n========================================" -ForegroundColor Blue
-    Write-Host "        GESTIÓN DE SERVICIO DHCP         " -ForegroundColor Cyan
+    Write-Host "      GESTION DE SERVICIO DHCP          " -ForegroundColor Cyan
     Write-Host "========================================" -ForegroundColor Blue
-    Write-Host "1. Verificar instalacion"              -ForegroundColor Yellow
-    Write-Host "2. instalar servicio"            -ForegroundColor Yellow
-    Write-Host "3. desinstalar servicio"                      -ForegroundColor Yellow
-    Write-Host "4. Volver al menú principal"             -ForegroundColor Yellow
-    Write-Host "5. borrar scopes"             -ForegroundColor Yellow
-    Write-Host "6. monitoreo"             -ForegroundColor Yellow
-    Write-Host "7. volver a menu principal"             -ForegroundColor Yellow
+    Write-Host "1. Verificar instalacion"   -ForegroundColor Yellow
+    Write-Host "2. Instalar servicio"       -ForegroundColor Yellow
+    Write-Host "3. Desinstalar servicio"    -ForegroundColor Yellow
+    Write-Host "4. Configurar DHCP"         -ForegroundColor Yellow
+    Write-Host "5. Borrar scopes"           -ForegroundColor Yellow
+    Write-Host "6. Monitoreo"               -ForegroundColor Yellow
+    Write-Host "7. Volver al menu principal" -ForegroundColor Yellow
 
-    $op = Read-Host "`nElige una opción"
+    $op = Read-Host "Elige una opcion"
     switch ($op) {
         "1" { verificarInstalacion }
         "2" { instalacion }
@@ -272,6 +188,6 @@ function menuDhcp {
         "5" { borrarScopes }
         "6" { monitoreo }
         "7" { return }
-        default { Write-Host "Opción inválida." -ForegroundColor Red }
+        default { Write-Host "Opcion invalida." -ForegroundColor Red }
     }
 }
