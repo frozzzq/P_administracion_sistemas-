@@ -80,6 +80,10 @@ function configuracionDhcp {
     $rangoI = validacionIpDhcp "IP Inicial del rango (IP del Servidor)"
     $prefijoI = $rangoI.Split('.')[0..2] -join '.'
 
+    # DNS primario = IP del propio servidor
+    $dnsServidor = $rangoI
+    Write-Host "DNS primario asignado automaticamente al servidor: $dnsServidor" -ForegroundColor Cyan
+
     Write-Host "Configurando IP fija en el servidor ($rangoI)..." -ForegroundColor Yellow
     try {
         Remove-NetIPAddress -InterfaceAlias "Ethernet 2" -Confirm:$false -ErrorAction SilentlyContinue
@@ -101,7 +105,8 @@ function configuracionDhcp {
     $redId   = $prefijoI + ".0"
     $mascara = "255.255.255.0"
 
-    $dns     = validacionIpDhcp "Servidor DNS (Enter para saltar)" $true
+    # DNS secundario opcional
+    $dnsSecundario = validacionIpDhcp "Servidor DNS secundario (Enter para saltar)" $true
     $gateway = Read-Host "Ingrese la IP del Gateway (Enter para saltar)"
 
     $tiempolease = Read-Host "Ingrese tiempo de concesion (ej: 08:00:00)"
@@ -110,9 +115,16 @@ function configuracionDhcp {
     Write-Host "Aplicando configuracion..." -ForegroundColor Cyan
     try {
         Add-DhcpServerv4Scope -Name $nombreScope -StartRange $rangoDhcpInicio -EndRange $rangoF -SubnetMask $mascara -LeaseDuration ([timespan]$tiempolease) -State "Active"
-        if (-not [string]::IsNullOrWhiteSpace($dns)) {
-            Set-DhcpServerv4OptionValue -ScopeId $redId -DnsServer $dns -Force
+
+        # Configurar DNS: primario = servidor, secundario = opcional
+        if (-not [string]::IsNullOrWhiteSpace($dnsSecundario)) {
+            Set-DhcpServerv4OptionValue -ScopeId $redId -DnsServer $dnsServidor, $dnsSecundario -Force
+            Write-Host "DNS configurado: primario=$dnsServidor secundario=$dnsSecundario" -ForegroundColor Green
+        } else {
+            Set-DhcpServerv4OptionValue -ScopeId $redId -DnsServer $dnsServidor -Force
+            Write-Host "DNS configurado: primario=$dnsServidor" -ForegroundColor Green
         }
+
         if (-not [string]::IsNullOrWhiteSpace($gateway)) {
             Set-DhcpServerv4OptionValue -ScopeId $redId -OptionId 3 -Value $gateway
             Write-Host "Gateway configurado: $gateway" -ForegroundColor Green
@@ -168,15 +180,15 @@ function monitoreo {
 }
 
 function menuDhcp {
-    Write-Host "`n========================================" -ForegroundColor Blue
+    Write-Host "========================================" -ForegroundColor Blue
     Write-Host "      GESTION DE SERVICIO DHCP          " -ForegroundColor Cyan
     Write-Host "========================================" -ForegroundColor Blue
-    Write-Host "1. Verificar instalacion"   -ForegroundColor Yellow
-    Write-Host "2. Instalar servicio"       -ForegroundColor Yellow
-    Write-Host "3. Desinstalar servicio"    -ForegroundColor Yellow
-    Write-Host "4. Configurar DHCP"         -ForegroundColor Yellow
-    Write-Host "5. Borrar scopes"           -ForegroundColor Yellow
-    Write-Host "6. Monitoreo"               -ForegroundColor Yellow
+    Write-Host "1. Verificar instalacion"    -ForegroundColor Yellow
+    Write-Host "2. Instalar servicio"        -ForegroundColor Yellow
+    Write-Host "3. Desinstalar servicio"     -ForegroundColor Yellow
+    Write-Host "4. Configurar DHCP"          -ForegroundColor Yellow
+    Write-Host "5. Borrar scopes"            -ForegroundColor Yellow
+    Write-Host "6. Monitoreo"                -ForegroundColor Yellow
     Write-Host "7. Volver al menu principal" -ForegroundColor Yellow
 
     $op = Read-Host "Elige una opcion"
