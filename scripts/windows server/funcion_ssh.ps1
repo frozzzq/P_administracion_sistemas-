@@ -92,7 +92,7 @@ function instalarSsh {
     $ip = (Get-NetIPAddress -AddressFamily IPv4 |
            Where-Object { $_.InterfaceAlias -like "*Ethernet*" -and $_.IPAddress -notlike "169.254*" } |
            Select-Object -First 1).IPAddress
-    Write-Host ("  ssh <usuario>@ " + $ip) -ForegroundColor Yellow
+    Write-Host "  ssh ``<usuario``>@$ip"  -ForegroundColor Yellow
 }
 
 # ------------------------------------------------------------------------------
