@@ -228,38 +228,51 @@ function crearUsuariosFtp {
             $grupo = Read-Host "Grupo (reprobados/recursadores)"
         } while ($grupo -ne "reprobados" -and $grupo -ne "recursadores")
 
-        # Crear usuario local
+        # --- Crear usuario local ---
+        $usuarioCreado = $false
         if (Get-LocalUser -Name $usuario -ErrorAction SilentlyContinue) {
             Write-Host "El usuario '$usuario' ya existe." -ForegroundColor Yellow
+            $usuarioCreado = $true
         } else {
             try {
                 New-LocalUser -Name $usuario -Password $password -FullName $usuario `
-                    -Description "Usuario FTP Practica5" -PasswordNeverExpires
+                    -Description "Usuario FTP Practica5" -PasswordNeverExpires -ErrorAction Stop
                 Write-Host "Usuario '$usuario' creado." -ForegroundColor Green
+                $usuarioCreado = $true
             } catch {
-                Write-Host "Error al crear usuario: $($_.Exception.Message)" -ForegroundColor Red
+                Write-Host "Error al crear usuario '$usuario': $($_.Exception.Message)" -ForegroundColor Red
+                Write-Host "Verifique que la contrasena cumpla los requisitos de complejidad de Windows." -ForegroundColor Yellow
+                Write-Host "  - Minimo 8 caracteres" -ForegroundColor Yellow
+                Write-Host "  - Debe incluir mayusculas, minusculas y numeros o simbolos" -ForegroundColor Yellow
                 continue
             }
         }
 
-        # Agregar al grupo correspondiente
+        # Solo continuar si el usuario existe
+        if (-not $usuarioCreado) { continue }
+
+        # --- Agregar al grupo correspondiente ---
         Add-LocalGroupMember -Group $grupo -Member $usuario -ErrorAction SilentlyContinue
         Write-Host "Usuario '$usuario' agregado al grupo '$grupo'." -ForegroundColor Green
 
-        # Crear carpeta personal
+        # --- Crear carpeta personal ---
         $carpetaPersonal = "$ftpRootPath\$usuario"
         if (-not (Test-Path $carpetaPersonal)) {
             New-Item -ItemType Directory -Path $carpetaPersonal | Out-Null
         }
 
-        # Permisos NTFS: usuario tiene Modify en su carpeta personal
-        $acl   = Get-Acl $carpetaPersonal
-        $regla = New-Object System.Security.AccessControl.FileSystemAccessRule(
-            $usuario, "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
-        $acl.SetAccessRule($regla)
-        Set-Acl $carpetaPersonal $acl
-
-        Write-Host "Carpeta personal configurada: $carpetaPersonal" -ForegroundColor Green
+        # --- Permisos NTFS con nombre completo COMPUTERNAME\usuario ---
+        try {
+            $identidad = "$env:COMPUTERNAME\$usuario"
+            $acl       = Get-Acl $carpetaPersonal
+            $regla     = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                $identidad, "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+            $acl.SetAccessRule($regla)
+            Set-Acl $carpetaPersonal $acl
+            Write-Host "Carpeta personal configurada: $carpetaPersonal" -ForegroundColor Green
+        } catch {
+            Write-Host "Error al configurar permisos para '$usuario': $($_.Exception.Message)" -ForegroundColor Red
+        }
     }
 
     Write-Host "`nCreacion de usuarios completada." -ForegroundColor Green
