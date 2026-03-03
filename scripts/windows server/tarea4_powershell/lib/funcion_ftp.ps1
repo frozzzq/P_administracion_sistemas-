@@ -165,29 +165,50 @@ function configurarFtp {
     Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpServer.security.authentication.anonymousAuthentication.enabled -Value $true
     Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpServer.security.authentication.basicAuthentication.enabled    -Value $true
 
-    # Reglas de autorizacion FTP
-    Clear-WebConfiguration "/system.ftpServer/security/authorization" -PSPath "IIS:\Sites\$ftpSiteName"
+    # ---------------------------------------------------------------
+    # Reglas de autorizacion FTP  (FIX: usar MACHINE/WEBROOT/APPHOST)
+    # ---------------------------------------------------------------
+    $appHostPath = "MACHINE/WEBROOT/APPHOST"
+    $authPath    = "/system.ftpServer/security/authorization"
+
+    # Desbloquear la seccion a nivel servidor para que acepte overrides
+    Set-WebConfiguration "$authPath" `
+        -Metadata overrideMode `
+        -Value Allow `
+        -PSPath "IIS:\" `
+        -ErrorAction SilentlyContinue
+
+    # Limpiar reglas existentes para este sitio
+    Clear-WebConfiguration $authPath `
+        -PSPath $appHostPath `
+        -Location $ftpSiteName `
+        -ErrorAction SilentlyContinue
 
     # Anonimo: solo lectura
-    Add-WebConfiguration "/system.ftpServer/security/authorization" -PSPath "IIS:\Sites\$ftpSiteName" -Value @{
-        accessType  = "Allow"
-        users       = ""
-        roles       = ""
-        permissions = "Read"
-    }
+    Add-WebConfiguration $authPath `
+        -PSPath $appHostPath `
+        -Location $ftpSiteName `
+        -Value @{
+            accessType  = "Allow"
+            users       = ""
+            roles       = ""
+            permissions = "Read"
+        }
 
     # Usuarios autenticados: lectura y escritura
-    Add-WebConfiguration "/system.ftpServer/security/authorization" -PSPath "IIS:\Sites\$ftpSiteName" -Value @{
-        accessType  = "Allow"
-        users       = "*"
-        roles       = ""
-        permissions = "Read, Write"
-    }
+    Add-WebConfiguration $authPath `
+        -PSPath $appHostPath `
+        -Location $ftpSiteName `
+        -Value @{
+            accessType  = "Allow"
+            users       = "*"
+            roles       = ""
+            permissions = "Read, Write"
+        }
 
     Start-Website -Name $ftpSiteName -ErrorAction SilentlyContinue
     Write-Host "Configuracion FTP completada exitosamente." -ForegroundColor Green
 }
-
 function crearUsuariosFtp {
     Import-Module WebAdministration -ErrorAction SilentlyContinue
     Write-Host "`n=== CREACION DE USUARIOS FTP ===" -ForegroundColor Blue
