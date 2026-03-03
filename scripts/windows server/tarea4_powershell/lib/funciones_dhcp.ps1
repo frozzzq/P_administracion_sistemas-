@@ -80,7 +80,7 @@ function configuracionDhcp {
     $rangoI = validacionIpDhcp "IP Inicial del rango (IP del Servidor)"
     $prefijoI = $rangoI.Split('.')[0..2] -join '.'
 
-    # DNS primario = IP del propio servidor
+ 
     $dnsServidor = $rangoI
     Write-Host "DNS primario asignado automaticamente al servidor: $dnsServidor" -ForegroundColor Cyan
 
@@ -105,7 +105,7 @@ function configuracionDhcp {
     $redId   = $prefijoI + ".0"
     $mascara = "255.255.255.0"
 
-    # DNS secundario opcional
+
     $dnsSecundario = validacionIpDhcp "Servidor DNS secundario (Enter para saltar)" $true
     $gateway = Read-Host "Ingrese la IP del Gateway (Enter para saltar)"
 
@@ -116,7 +116,6 @@ function configuracionDhcp {
     try {
         Add-DhcpServerv4Scope -Name $nombreScope -StartRange $rangoDhcpInicio -EndRange $rangoF -SubnetMask $mascara -LeaseDuration ([timespan]$tiempolease) -State "Active"
 
-        # Configurar DNS: primario = servidor, secundario = opcional
         if (-not [string]::IsNullOrWhiteSpace($dnsSecundario)) {
             Set-DhcpServerv4OptionValue -ScopeId $redId -DnsServer $dnsServidor, $dnsSecundario -Force
             Write-Host "DNS configurado: primario=$dnsServidor secundario=$dnsSecundario" -ForegroundColor Green

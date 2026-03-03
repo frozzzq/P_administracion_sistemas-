@@ -4,7 +4,7 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-# Cargar librerias
+
 . "$(dirname "$0")/lib/funcion_ssh.sh"
 . "$(dirname "$0")/lib/funcion_dhcp.sh"
 . "$(dirname "$0")/lib/funcion_dns.sh"
