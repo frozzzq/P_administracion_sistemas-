@@ -10,7 +10,8 @@ function menu {
     Write-Host "1. Gestionar SSH"  -ForegroundColor Yellow
     Write-Host "2. Gestionar DHCP" -ForegroundColor Yellow
     Write-Host "3. Gestionar DNS"  -ForegroundColor Yellow
-    Write-Host "4. Salir"          -ForegroundColor Yellow
+    Write-Host "4. Gestionar FTP"  -ForegroundColor Yellow
+    Write-Host "5. Salir"          -ForegroundColor Yellow
 }
 
 do {
@@ -20,8 +21,8 @@ do {
         "1" { menuSsh }
         "2" { menuDhcp }
         "3" { menuDns }
-        "3" { menuFtp }
-        "4" { Write-Host "Saliendo..." -ForegroundColor Cyan }
+        "4" { menuFtp }
+        "5" { Write-Host "Saliendo..." -ForegroundColor Cyan }
         default { Write-Host "Opcion invalida." -ForegroundColor Red }
     }
     if ($opcion -ne "4") {
