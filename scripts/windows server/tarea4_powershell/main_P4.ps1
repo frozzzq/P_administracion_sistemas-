@@ -1,6 +1,7 @@
 . "$PSScriptRoot\lib\funcion_ssh.ps1"
 . "$PSScriptRoot\lib\funciones_dhcp.ps1"
 . "$PSScriptRoot\lib\funcion_dns.ps1"
+. "$PSScriptRoot\lib\funcion_ftp.ps1"
 
 function menu {
     Write-Host "===================================================================" -ForegroundColor Cyan
@@ -19,6 +20,7 @@ do {
         "1" { menuSsh }
         "2" { menuDhcp }
         "3" { menuDns }
+        "3" { menuFtp }
         "4" { Write-Host "Saliendo..." -ForegroundColor Cyan }
         default { Write-Host "Opcion invalida." -ForegroundColor Red }
     }
