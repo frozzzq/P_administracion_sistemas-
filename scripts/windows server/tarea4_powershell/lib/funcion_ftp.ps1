@@ -824,3 +824,18 @@ elseif ($status)  { Ver-Estado }
 elseif ($list)    { Listar-Usuarios-FTP }
 elseif ($help)    { Mostrar-Ayuda }
 else              { Mostrar-Ayuda }
+
+$op = Read-Host "Elige una opcion"
+    switch ($op) {
+        "1" { Verificar-Instalacion }
+        "2" { Instalar-FTP }
+        "3" { Gestionar-Usuarios }
+        "4" { Reiniciar-FTP }
+        "5" { Ver-Estado }
+        "6" { Listar-Usuarios-FTP }
+        "7" { Mostrar-Ayuda }
+        "8" { return }
+      
+        
+        default { Write-Host "Opcion invalida." -ForegroundColor Red }
+    }
