@@ -246,7 +246,7 @@ function crearUsuariosFtp {
             New-Item -ItemType Directory -Path $carpetaPersonal | Out-Null
         }
         try {
-            $identidad = "$env:COMPUTERNAME\$usuario"
+            $identidad = (Get-LocalUser -Name $usuario).SID, "Modify"
             $acl       = Get-Acl $carpetaPersonal
             $regla     = New-Object System.Security.AccessControl.FileSystemAccessRule(
                 $identidad, "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
@@ -274,7 +274,7 @@ function crearUsuariosFtp {
                 $id, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")))
         }
         $aclHome.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
-            "$env:COMPUTERNAME\$usuario", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")))
+            (Get-LocalUser -Name $usuario).SID, "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")))
         Set-Acl $homeDir $aclHome
 
         Write-Host "Estructura de acceso creada para '$usuario': general, $grupo, $usuario" -ForegroundColor Green
