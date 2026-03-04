@@ -226,6 +226,7 @@ function crearUsuariosFtp {
             try {
                 New-LocalUser -Name $usuario -Password $password -FullName $usuario `
                     -Description "Usuario FTP Practica5" -PasswordNeverExpires -ErrorAction Stop
+                Start-Sleep -Seconds 2
                 Write-Host "Usuario '$usuario' creado." -ForegroundColor Green
                 $usuarioCreado = $true
             } catch {
