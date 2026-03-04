@@ -119,6 +119,19 @@ function configurarFtp {
     crearJunction "$ftpRootPath\LocalUser\Public\general" "$ftpRootPath\general"
     Write-Host "Junction anonimo (Public\general) configurada." -ForegroundColor Green
 
+    # Quitar herencia en LocalUser: solo Administradores y SYSTEM tienen acceso
+    $aclLocalUser = Get-Acl "$ftpRootPath\LocalUser"
+    $aclLocalUser.SetAccessRuleProtection($true, $false)
+    $aclLocalUser.Access | ForEach-Object { $aclLocalUser.RemoveAccessRule($_) | Out-Null }
+    foreach ($id in @("SYSTEM", "Administrators")) {
+        $aclLocalUser.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+            $id, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")))
+    }
+    $aclLocalUser.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+        "IUSR", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")))
+    Set-Acl "$ftpRootPath\LocalUser" $aclLocalUser
+    Write-Host "Permisos restrictivos aplicados en: LocalUser" -ForegroundColor Green
+
     foreach ($grupo in @("reprobados", "recursadores")) {
         if (-not (Get-LocalGroup -Name $grupo -ErrorAction SilentlyContinue)) {
             New-LocalGroup -Name $grupo -Description "Grupo FTP $grupo"
@@ -250,6 +263,18 @@ function crearUsuariosFtp {
         crearJunction "$homeDir\general"  "$ftpRootPath\general"
         crearJunction "$homeDir\$grupo"   "$ftpRootPath\$grupo"
         crearJunction "$homeDir\$usuario" "$ftpRootPath\$usuario"
+
+        # Dar acceso al usuario SOLO a su propia carpeta en LocalUser
+        $aclHome = Get-Acl $homeDir
+        $aclHome.SetAccessRuleProtection($true, $false)
+        $aclHome.Access | ForEach-Object { $aclHome.RemoveAccessRule($_) | Out-Null }
+        foreach ($id in @("SYSTEM", "Administrators")) {
+            $aclHome.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+                $id, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")))
+        }
+        $aclHome.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+            "$env:COMPUTERNAME\$usuario", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")))
+        Set-Acl $homeDir $aclHome
 
         Write-Host "Estructura de acceso creada para '$usuario': general, $grupo, $usuario" -ForegroundColor Green
     }
