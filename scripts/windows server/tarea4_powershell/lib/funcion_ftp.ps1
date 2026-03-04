@@ -119,7 +119,7 @@ function configurarFtp {
     crearJunction "$ftpRootPath\LocalUser\Public\general" "$ftpRootPath\general"
     Write-Host "Junction anonimo (Public\general) configurada." -ForegroundColor Green
 
-    # Quitar herencia en LocalUser: solo Administradores y SYSTEM tienen acceso
+    # Quitar herencia en LocalUser: solo Administradores, SYSTEM e IUSR
     $aclLocalUser = Get-Acl "$ftpRootPath\LocalUser"
     $aclLocalUser.SetAccessRuleProtection($true, $false)
     $aclLocalUser.Access | ForEach-Object { $aclLocalUser.RemoveAccessRule($_) | Out-Null }
@@ -177,8 +177,6 @@ function configurarFtp {
     Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpServer.security.ssl.dataChannelPolicy    -Value 0
     Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpServer.security.authentication.anonymousAuthentication.enabled -Value $true
     Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpServer.security.authentication.basicAuthentication.enabled    -Value $true
-
-    # User Isolation: cada usuario ve solo LocalUser\username
     Set-ItemProperty "IIS:\Sites\$ftpSiteName" -Name ftpServer.userIsolation.mode -Value 3
     Write-Host "User Isolation activado." -ForegroundColor Green
 
@@ -241,15 +239,16 @@ function crearUsuariosFtp {
         Add-LocalGroupMember -Group $grupo -Member $usuario -ErrorAction SilentlyContinue
         Write-Host "Usuario '$usuario' agregado al grupo '$grupo'." -ForegroundColor Green
 
+        # Carpeta personal real con permisos por SID
         $carpetaPersonal = "$ftpRootPath\$usuario"
         if (-not (Test-Path $carpetaPersonal)) {
             New-Item -ItemType Directory -Path $carpetaPersonal | Out-Null
         }
         try {
-            $identidad = (Get-LocalUser -Name $usuario).SID, "Modify"
-            $acl       = Get-Acl $carpetaPersonal
-            $regla     = New-Object System.Security.AccessControl.FileSystemAccessRule(
-                $identidad, "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+            $sid   = (Get-LocalUser -Name $usuario).SID
+            $acl   = Get-Acl $carpetaPersonal
+            $regla = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                $sid, "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
             $acl.SetAccessRule($regla)
             Set-Acl $carpetaPersonal $acl
         } catch {
@@ -265,17 +264,22 @@ function crearUsuariosFtp {
         crearJunction "$homeDir\$grupo"   "$ftpRootPath\$grupo"
         crearJunction "$homeDir\$usuario" "$ftpRootPath\$usuario"
 
-        # Dar acceso al usuario SOLO a su propia carpeta en LocalUser
-        $aclHome = Get-Acl $homeDir
-        $aclHome.SetAccessRuleProtection($true, $false)
-        $aclHome.Access | ForEach-Object { $aclHome.RemoveAccessRule($_) | Out-Null }
-        foreach ($id in @("SYSTEM", "Administrators")) {
+        # Permisos homeDir: solo el propio usuario (por SID)
+        try {
+            $sid     = (Get-LocalUser -Name $usuario).SID
+            $aclHome = Get-Acl $homeDir
+            $aclHome.SetAccessRuleProtection($true, $false)
+            $aclHome.Access | ForEach-Object { $aclHome.RemoveAccessRule($_) | Out-Null }
+            foreach ($id in @("SYSTEM", "Administrators")) {
+                $aclHome.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+                    $id, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")))
+            }
             $aclHome.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
-                $id, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")))
+                $sid, "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")))
+            Set-Acl $homeDir $aclHome
+        } catch {
+            Write-Host "Aviso permisos homeDir: $($_.Exception.Message)" -ForegroundColor Yellow
         }
-        $aclHome.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
-            (Get-LocalUser -Name $usuario).SID, "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")))
-        Set-Acl $homeDir $aclHome
 
         Write-Host "Estructura de acceso creada para '$usuario': general, $grupo, $usuario" -ForegroundColor Green
     }
