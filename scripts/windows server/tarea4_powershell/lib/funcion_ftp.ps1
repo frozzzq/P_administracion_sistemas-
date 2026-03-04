@@ -123,7 +123,7 @@ function configurarFtp {
     $aclLocalUser = Get-Acl "$ftpRootPath\LocalUser"
     $aclLocalUser.SetAccessRuleProtection($true, $false)
     $aclLocalUser.Access | ForEach-Object { $aclLocalUser.RemoveAccessRule($_) | Out-Null }
-    foreach ($id in @("SYSTEM", "Administrators")) {
+    foreach ($id in @("SYSTEM", "Administrators", "IIS_IUSRS")) {
         $aclLocalUser.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
             $id, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")))
     }
@@ -270,7 +270,7 @@ function crearUsuariosFtp {
             $aclHome = Get-Acl $homeDir
             $aclHome.SetAccessRuleProtection($true, $false)
             $aclHome.Access | ForEach-Object { $aclHome.RemoveAccessRule($_) | Out-Null }
-            foreach ($id in @("SYSTEM", "Administrators")) {
+            foreach ($id in @("SYSTEM", "Administrators", "IIS_IUSRS")) {
                 $aclHome.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
                     $id, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")))
             }
