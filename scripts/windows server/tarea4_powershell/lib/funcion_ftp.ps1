@@ -816,14 +816,6 @@ function Mostrar-Ayuda {
 # ============================================================================
 # ENTRY POINT
 # ============================================================================
-if     ($verify)  { Verificar-Instalacion }
-elseif ($install) { Instalar-FTP }
-elseif ($users)   { Gestionar-Usuarios }
-elseif ($restart) { Reiniciar-FTP }
-elseif ($status)  { Ver-Estado }
-elseif ($list)    { Listar-Usuarios-FTP }
-elseif ($help)    { Mostrar-Ayuda }
-else              { Mostrar-Ayuda }
 
 $op = Read-Host "Elige una opcion"
     switch ($op) {
@@ -839,3 +831,31 @@ $op = Read-Host "Elige una opcion"
         
         default { Write-Host "Opcion invalida." -ForegroundColor Red }
     }
+
+function menuFtp {
+    Write-Host "`n========================================" -ForegroundColor Blue
+    Write-Host "      GESTION DE SERVICIO FTP           " -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Blue
+    Write-Host "1. Verificar instalacion"    -ForegroundColor Yellow
+    Write-Host "2. Instalar FTP"             -ForegroundColor Yellow
+    Write-Host "3. gestionar usuarios"          -ForegroundColor Yellow
+    Write-Host "4. reiniciar ftp"           -ForegroundColor Yellow
+    Write-Host "5. ver estado"       -ForegroundColor Yellow
+    Write-Host "6. listar usuarios"                -ForegroundColor Yellow
+    Write-Host "7. mostrar ayuda" -ForegroundColor Yellow
+
+    $op = Read-Host "Elige una opcion"
+    switch ($op) {
+        "1" { Verificar-Instalacion }
+        "2" { Instalar-FTP }
+        "3" { Gestionar-Usuarios }
+        "4" { Reiniciar-FTP }
+        "5" { Ver-Estado }
+        "6" { Listar-Usuarios-FTP }
+        "7" { Mostrar-Ayuda }
+        "8" { return }
+      
+        
+        default { Write-Host "Opcion invalida." -ForegroundColor Red }
+    }
+}
