@@ -21,7 +21,7 @@ do {
         "1" { menuSsh }
         "2" { menuDhcp }
         "3" { menuDns }
-        "4" { funcion_ftp }
+        "4" { menuFtp }
         "5" { Write-Host "Saliendo..." -ForegroundColor Cyan }
         default { Write-Host "Opcion invalida." -ForegroundColor Red }
     }
