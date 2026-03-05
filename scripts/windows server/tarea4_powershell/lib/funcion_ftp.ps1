@@ -504,14 +504,14 @@ function Crear-Usuario-FTP {
     Construir-Jaula-Usuario -usuario $usuario -grupo $grupo
 
     Write-Host ""
-    Print-Ok "═══════════════════════════════════════════"
+    Print-Ok "==========================================="
     Print-Ok "  Usuario '$usuario' creado correctamente"
-    Print-Ok "═══════════════════════════════════════════"
+    Print-Ok "============================================"
     Print-Info "  Estructura al conectar por FTP:"
     Print-Info "    /general/      (publica, todos leen y escriben)"
     Print-Info "    /$grupo/       (solo tu grupo)"
     Print-Info "    /$usuario/     (personal)"
-    Print-Ok "═══════════════════════════════════════════"
+    Print-Ok "============================================="
 
     return $true
 }
