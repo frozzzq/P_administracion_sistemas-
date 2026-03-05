@@ -162,29 +162,30 @@ function configurarFtp {
 
     # Paso 3: habilitar autenticacion anonima y basica
     Set-WebConfigurationProperty `
-        -Filter "/system.ftpServer/security/authentication/anonymousAuthentication" `
+        -Filter "system.ftpServer/security/authentication/anonymousAuthentication" `
         -Name "enabled" -Value $true `
-        -PSPath "IIS:\Sites\$ftpSiteName"
+        -PSPath "IIS:\" -Location $ftpSiteName
 
     Set-WebConfigurationProperty `
-        -Filter "/system.ftpServer/security/authentication/basicAuthentication" `
+        -Filter "system.ftpServer/security/authentication/basicAuthentication" `
         -Name "enabled" -Value $true `
-        -PSPath "IIS:\Sites\$ftpSiteName"
+        -PSPath "IIS:\" -Location $ftpSiteName
 
     # Paso 4: SSL permitido pero no requerido (entorno de laboratorio)
     Set-WebConfigurationProperty `
-        -Filter "/system.ftpServer/security/ssl" `
+        -Filter "system.ftpServer/security/ssl" `
         -Name "controlChannelPolicy" -Value "SslAllow" `
-        -PSPath "IIS:\Sites\$ftpSiteName"
+        -PSPath "IIS:\" -Location $ftpSiteName
     Set-WebConfigurationProperty `
-        -Filter "/system.ftpServer/security/ssl" `
+        -Filter "system.ftpServer/security/ssl" `
         -Name "dataChannelPolicy" -Value "SslAllow" `
-        -PSPath "IIS:\Sites\$ftpSiteName"
+        -PSPath "IIS:\" -Location $ftpSiteName
 
     # Paso 5: aislamiento de usuarios (cada usuario ve solo su carpeta raiz)
+    # Valor correcto del enum: IsolateRootDirectoryOnly
     Set-WebConfigurationProperty `
         -Filter "system.applicationHost/sites/site[@name='$ftpSiteName']/ftpServer/userIsolation" `
-        -Name "mode" -Value "IsolateRoots" `
+        -Name "mode" -Value "IsolateRootDirectoryOnly" `
         -PSPath "IIS:\"
 
     # Paso 6: reglas de autorizacion FTP
