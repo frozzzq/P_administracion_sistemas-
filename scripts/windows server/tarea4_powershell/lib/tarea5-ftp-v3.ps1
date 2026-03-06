@@ -646,6 +646,15 @@ function Cambiar-Grupo-Usuario {
     Print-Info "  /general/       (publica)"
     Print-Info "  /$nuevoGrupo/   (nuevo grupo)"
     Print-Info "  /$usuario/      (personal)"
+
+    # Reiniciar FTP para invalidar sesiones activas y aplicar nuevo token de seguridad
+    Print-Warn "Reiniciando servicio FTP para aplicar cambios de grupo..."
+    Stop-Service ftpsvc -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    Start-Service ftpsvc
+    Start-Sleep -Seconds 2
+    & "$env:SystemRoot\System32\inetsrv\appcmd.exe" start site $FTP_SITE_NAME | Out-Null
+    Print-Ok "Servicio FTP reiniciado. El usuario debe reconectarse en FileZilla."
 }
 
 # ============================================================================
