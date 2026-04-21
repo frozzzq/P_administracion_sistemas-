@@ -1,0 +1,161 @@
+$DOMINIO      = "empresa.local"
+$DC_PATH      = "DC=empresa,DC=local"
+$CSV_USUARIOS = "$PSScriptRoot\usuarios.csv"
+
+
+function Inicializar-Entorno {
+    Write-Host ""
+    Write-Host "========== Inicializar Entorno =========="
+
+    $rol = Get-WindowsFeature -Name AD-Domain-Services
+    if ($rol.InstallState -ne "Installed") {
+        Print-Info "Instalando rol AD-Domain-Services..."
+        Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
+        Print-Ok "Rol AD instalado."
+    } else {
+        Print-Warn "AD-Domain-Services ya instalado (se omite)."
+    }
+
+    $fsrm = Get-WindowsFeature -Name FS-Resource-Manager
+    if ($fsrm.InstallState -ne "Installed") {
+        Print-Info "Instalando FSRM..."
+        Install-WindowsFeature -Name FS-Resource-Manager -IncludeManagementTools
+        Print-Ok "FSRM instalado."
+    } else {
+        Print-Warn "FSRM ya instalado (se omite)."
+    }
+
+    $domainRole = (Get-WmiObject Win32_ComputerSystem).DomainRole
+    if ($domainRole -ge 4) {
+        Print-Warn "Ya es Controlador de Dominio (se omite promocion)."
+        return
+    }
+
+    Print-Info "Promoviendo a Controlador de Dominio..."
+    $safePass = ConvertTo-SecureString "SafeMode@Pass123!" -AsPlainText -Force
+
+    Install-ADDSForest `
+        -DomainName                    $DOMINIO `
+        -DomainNetBiosName             "EMPRESA" `
+        -InstallDns `
+        -SafeModeAdministratorPassword $safePass `
+        -Force
+
+    Print-Warn "El servidor se reiniciara. Ejecuta el script de nuevo y elige opcion 2."
+}
+
+
+function Crear-OUs {
+    Print-Info "Verificando Unidades Organizativas..."
+    foreach ($ou in @("Cuates", "NoCuates")) {
+        $existe = Get-ADOrganizationalUnit -Filter "Name -eq '$ou'" -ErrorAction SilentlyContinue
+        if (-not $existe) {
+            New-ADOrganizationalUnit -Name $ou -Path $DC_PATH
+            Print-Ok "OU creada: $ou"
+        } else {
+            Print-Warn "OU ya existe: $ou (se omite)"
+        }
+    }
+}
+
+
+function Crear-UsuariosCSV {
+    if (-not (Test-Path $CSV_USUARIOS)) {
+        Print-Err "No se encontro el CSV: $CSV_USUARIOS"
+        return
+    }
+
+    $usuarios = Import-Csv $CSV_USUARIOS
+    $creados  = 0
+    $omitidos = 0
+
+    Print-Info "Leyendo CSV: $($usuarios.Count) usuario(s)..."
+    Write-Host ""
+
+    foreach ($u in $usuarios) {
+        if ($u.OU -notin @("Cuates", "NoCuates")) {
+            Print-Warn "OU invalida '$($u.OU)' para '$($u.Usuario)'. Solo Cuates o NoCuates."
+            $omitidos++
+            continue
+        }
+
+        $existe = Get-ADUser -Filter "SamAccountName -eq '$($u.Usuario)'" -ErrorAction SilentlyContinue
+        if (-not $existe) {
+            $pass = ConvertTo-SecureString $u.Contrasena -AsPlainText -Force
+            New-ADUser `
+                -Name              "$($u.Nombre) $($u.Apellido)" `
+                -GivenName         $u.Nombre `
+                -Surname           $u.Apellido `
+                -SamAccountName    $u.Usuario `
+                -UserPrincipalName "$($u.Usuario)@$DOMINIO" `
+                -AccountPassword   $pass `
+                -Path              "OU=$($u.OU),$DC_PATH" `
+                -Enabled           $true
+            Print-Ok "Creado: $($u.Usuario) - $($u.OU)"
+            $creados++
+        } else {
+            Print-Warn "Ya existe: $($u.Usuario) (se omite)"
+            $omitidos++
+        }
+    }
+
+    Write-Host ""
+    Print-Info "Resumen: $creados creado(s), $omitidos omitido(s)."
+}
+
+
+function Habilitar-RDP-Usuarios {
+    Print-Info "Habilitando RDP para todos los usuarios..."
+
+    # Habilitar RDP en el servidor
+    Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
+        -Name "fDenyTSConnections" -Value 0
+    Enable-NetFirewallRule -DisplayGroup "Escritorio remoto" -ErrorAction SilentlyContinue
+
+    # Agregar todos los usuarios al grupo de escritorio remoto
+    $usuarios = @()
+    $usuarios += Get-ADUser -Filter * -SearchBase "OU=Cuates,$DC_PATH" -ErrorAction SilentlyContinue
+    $usuarios += Get-ADUser -Filter * -SearchBase "OU=NoCuates,$DC_PATH" -ErrorAction SilentlyContinue
+
+    foreach ($u in $usuarios) {
+        try {
+            Add-ADGroupMember -Identity "Usuarios de escritorio remoto" -Members $u.SamAccountName -ErrorAction Stop
+        } catch {}
+        net localgroup "Usuarios de escritorio remoto" "EMPRESA\$($u.SamAccountName)" /add 2>$null | Out-Null
+    }
+
+    $secpolPath = "C:\secpol_rdp.txt"
+    $sdbPath    = "C:\secpol_rdp.sdb"
+    secedit /export /cfg $secpolPath | Out-Null
+
+    $content = Get-Content $secpolPath
+    if (-not ($content -like "*S-1-5-32-555*")) {
+        $content = $content -replace `
+            "SeRemoteInteractiveLogonRight = \*S-1-5-32-544", `
+            "SeRemoteInteractiveLogonRight = *S-1-5-32-544,*S-1-5-32-555"
+        $content | Set-Content $secpolPath
+        secedit /configure /db $sdbPath /cfg $secpolPath /quiet | Out-Null
+    }
+
+    Remove-Item $secpolPath -ErrorAction SilentlyContinue
+    Remove-Item $sdbPath    -ErrorAction SilentlyContinue
+
+    Print-Ok "RDP habilitado para todos los usuarios."
+}
+
+
+function Configurar-AD {
+    Clear-Host
+    Write-Host "========== Configuracion de Active Directory =========="
+    Write-Host ""
+
+    Crear-OUs
+    Write-Host ""
+    Crear-UsuariosCSV
+    Write-Host ""
+    Habilitar-RDP-Usuarios
+
+    Write-Host ""
+    Print-Ok "Active Directory configurado correctamente."
+    Write-Host ""
+}

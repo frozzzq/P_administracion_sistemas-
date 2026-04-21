@@ -84,8 +84,15 @@ configurar_puerto_apache() {
     puerto="$1"
     conf="/etc/apache2/httpd.conf"
     print_info "Configurando puerto $puerto en Apache2..."
-    sed -i "s/^Listen .*/Listen $puerto/g" "$conf"
-    if grep -q "Listen $puerto" "$conf"; then
+
+    # Eliminar TODAS las líneas Listen para evitar duplicados
+    # (el httpd.conf de Alpine puede tener Listen 80 Y Listen 443)
+    sed -i '/^Listen /d' "$conf"
+
+    # Insertar UNA sola línea Listen después de ServerRoot
+    sed -i "/^ServerRoot/a Listen $puerto" "$conf"
+
+    if grep -q "^Listen $puerto" "$conf"; then
         print_success "Puerto configurado en $conf"
     else
         print_warning "Error al configurar puerto"
@@ -122,16 +129,10 @@ EOF
 EOF
         print_success "Headers de seguridad configurados"
     fi
+    # FIX: Solo modificar el Directory existente en lugar de agregar un bloque
+    # duplicado que causa conflicto con el <Directory> ya definido en httpd.conf
     if ! grep -q "Options -Indexes" "$conf"; then
-        cat >> "$conf" << 'EOF'
-
-# Disable directory listing
-<Directory /var/www/localhost/htdocs>
-    Options -Indexes +FollowSymLinks
-    AllowOverride None
-    Require all granted
-</Directory>
-EOF
+        sed -i 's/Options Indexes/Options -Indexes/' "$conf"
         print_success "Listado de directorios deshabilitado"
     fi
 }
@@ -285,7 +286,6 @@ setup_tomcat() {
     fi
 
     # Si server.xml ya existe, actualizar el puerto directamente
-    # Evita que arranque en el puerto anterior si se reutiliza /opt/tomcat
     if [ -f "/opt/tomcat/conf/server.xml" ]; then
         sed -i "s/\(<Connector[^>]*\)port=\"[0-9]*\"/\1port=\"$PUERTO_ELEGIDO\"/" /opt/tomcat/conf/server.xml
         echo "$PUERTO_ELEGIDO" > /opt/tomcat/conf/tomcat_port
@@ -300,31 +300,17 @@ setup_tomcat() {
 
     # =========================================================
     # FIX PUERTOS PRIVILEGIADOS (< 1024):
-    # En Linux, por defecto solo root puede abrir puertos < 1024.
-    # Solución: bajar el límite del kernel con sysctl.
-    #
-    # Por qué NO usamos setcap en Alpine+OpenJDK:
-    #   setcap no funciona sobre symlinks. OpenJDK en Alpine
-    #   instala java como symlink, y al aplicar setcap al binario
-    #   real rompe la carga de libjli.so (shared library),
-    #   dejando Java completamente inutilizable.
-    #
     # sysctl net.ipv4.ip_unprivileged_port_start=<puerto>
-    #   Le dice al kernel que desde ese número en adelante,
-    #   cualquier usuario (no solo root) puede hacer bind.
-    #   Es el método recomendado en Alpine Linux.
+    # Método recomendado en Alpine Linux.
     # =========================================================
     if [ "$PUERTO_ELEGIDO" -lt 1024 ]; then
         print_info "Puerto $PUERTO_ELEGIDO < 1024: configurando kernel para permitir bind..."
-        # Aplicar en caliente (esta sesión)
         sysctl -w net.ipv4.ip_unprivileged_port_start="$PUERTO_ELEGIDO" > /dev/null 2>&1
-        # Persistir en reinicios
         if ! grep -q "ip_unprivileged_port_start" /etc/sysctl.conf 2>/dev/null; then
             echo "net.ipv4.ip_unprivileged_port_start=$PUERTO_ELEGIDO" >> /etc/sysctl.conf
         else
             sed -i "s/net.ipv4.ip_unprivileged_port_start=.*/net.ipv4.ip_unprivileged_port_start=$PUERTO_ELEGIDO/" /etc/sysctl.conf
         fi
-        # Verificar que se aplicó
         actual=$(sysctl -n net.ipv4.ip_unprivileged_port_start 2>/dev/null)
         if [ "$actual" -le "$PUERTO_ELEGIDO" ]; then
             print_success "Kernel: puertos >= $PUERTO_ELEGIDO permitidos para usuarios no-root."
@@ -400,21 +386,15 @@ setup_tomcat() {
 
 # -----------------------------------------------------------------------------
 # FIX PRINCIPAL: configurar_puerto_tomcat
-# Problema original: sed solo buscaba port="8080"
-# Si Tomcat ya estaba instalado con otro puerto (ej. 8000), el sed
-# no encontraba nada y server.xml quedaba sin cambios.
-# Solucion: reemplazar CUALQUIER puerto existente en el Connector HTTP
+# Reemplaza CUALQUIER puerto existente en el Connector HTTP
 # -----------------------------------------------------------------------------
 configurar_puerto_tomcat() {
     puerto="$1"
     conf="/opt/tomcat/conf/server.xml"
     print_info "Configurando puerto $puerto en Tomcat..."
 
-    # Reemplaza el puerto en el Connector HTTP (cualquier valor actual)
-    # Busca: port="CUALQUIER_NUMERO" dentro de la linea del Connector HTTP
     sed -i "s/\(<Connector[^>]*\)port=\"[0-9]*\"/\1port=\"$puerto\"/" "$conf"
 
-    # Verificar que el cambio se aplicó
     if grep -q "port=\"$puerto\"" "$conf"; then
         print_success "Puerto $puerto configurado en $conf"
     else
@@ -502,7 +482,6 @@ crear_servicio_tomcat() {
     puerto="$1"
     service="/etc/init.d/tomcat"
 
-    # Guardar el puerto para que el init script lo lea en reinicios
     echo "$puerto" > /opt/tomcat/conf/tomcat_port
     chown tomcat:tomcat /opt/tomcat/conf/tomcat_port
 
@@ -521,7 +500,6 @@ depend() {
 
 start() {
     ebegin "Starting Tomcat"
-    # Aplicar sysctl si el puerto es privilegiado (necesario en cada reinicio)
     puerto_conf=\$(cat /opt/tomcat/conf/tomcat_port 2>/dev/null)
     if [ -n "\$puerto_conf" ] && [ "\$puerto_conf" -lt 1024 ]; then
         sysctl -w net.ipv4.ip_unprivileged_port_start="\$puerto_conf" > /dev/null 2>&1
@@ -543,6 +521,253 @@ INITEOF
     rc-update add tomcat default 2>/dev/null
     rc-service tomcat start
     print_success "Servicio Tomcat creado e iniciado"
+}
+
+# =============================================================================
+# SSL — APACHE
+# =============================================================================
+# FIX: El paquete apache2-ssl crea /etc/apache2/conf.d/ssl.conf que:
+#   1. Agrega su propio "Listen 443" → conflicto si el usuario eligió otro puerto
+#   2. Referencia certificados en /etc/ssl/apache2/ que NO existen → Apache crashea
+# Solución: deshabilitar ssl.conf del paquete antes de aplicar nuestra config.
+# =============================================================================
+ssl_apache() {
+    _ph="$1"   # puerto HTTP
+    _ps="$2"   # puerto HTTPS
+
+    print_title "APACHE — SSL/TLS (HTTP:${_ph} → HTTPS:${_ps})"
+
+    apk info -e apache2-ssl > /dev/null 2>&1 \
+        || apk add --no-cache apache2-ssl > /dev/null 2>&1
+
+    # FIX: Deshabilitar ssl.conf del paquete — referencia certs inexistentes
+    # y genera conflictos de Listen/VirtualHost con nuestra configuración
+    if [ -f /etc/apache2/conf.d/ssl.conf ]; then
+        mv /etc/apache2/conf.d/ssl.conf \
+           /etc/apache2/conf.d/ssl.conf.disabled 2>/dev/null
+        print_info "ssl.conf del paquete deshabilitado (evita conflicto de certs)"
+    fi
+
+    generar_cert "apache" || return 1
+
+    # Limpiar directivas que versiones anteriores del script pudieron dejar
+    sed -i '/LoadModule ssl_module/d'     /etc/apache2/httpd.conf
+    sed -i '/LoadModule rewrite_module/d' /etc/apache2/httpd.conf
+    sed -i '/LoadModule headers_module/d' /etc/apache2/httpd.conf
+    # Eliminar cualquier Listen del puerto HTTPS que ya exista en httpd.conf
+    sed -i "/^Listen ${_ps}$/d"           /etc/apache2/httpd.conf
+
+    _docroot=$(grep "^DocumentRoot" /etc/apache2/httpd.conf 2>/dev/null \
+               | head -1 | awk '{print $2}' | tr -d '"')
+    _docroot="${_docroot:-/var/www/localhost/htdocs}"
+
+    # %{HTTP_HOST} captura la IP real de la petición — sin hardcodear nada
+    cat > /etc/apache2/conf.d/p7-ssl.conf << EOF
+# Redireccion HTTP → HTTPS
+# %{HTTP_HOST} captura la IP real de la peticion sin hardcodearla
+<VirtualHost *:${_ph}>
+    Redirect permanent / https://%{HTTP_HOST}:${_ps}/
+</VirtualHost>
+
+# HTTPS — escucha en cualquier IP del servidor
+<VirtualHost *:${_ps}>
+    DocumentRoot "${_docroot}"
+
+    SSLEngine on
+    SSLCertificateFile    ${CERT_FILE}
+    SSLCertificateKeyFile ${KEY_FILE}
+    SSLProtocol           TLSv1.2 TLSv1.3
+    SSLCipherSuite        HIGH:!aNULL:!MD5
+
+    <Directory "${_docroot}">
+        Options -Indexes -FollowSymLinks
+        AllowOverride None
+        Require all granted
+    </Directory>
+</VirtualHost>
+EOF
+
+    iptables -A INPUT -p tcp --dport "$_ps" -j ACCEPT 2>/dev/null || true
+
+    # Verificar sintaxis antes de reiniciar
+    if ! httpd -t 2>/dev/null; then
+        print_warning "Error de sintaxis en la configuración de Apache:"
+        httpd -t 2>&1
+        return 1
+    fi
+
+    rc-service apache2 restart 2>/dev/null; sleep 2
+
+    if rc-service apache2 status > /dev/null 2>&1; then
+        print_success "✓ Apache con HTTPS activo en puerto ${_ps}"
+    else
+        print_warning "Apache no arrancó — revisa: tail -20 /var/log/apache2/error.log"
+        return 1
+    fi
+}
+
+# =============================================================================
+# SSL — NGINX
+# =============================================================================
+ssl_nginx() {
+    _ph="$1"
+    _ps="$2"
+
+    print_title "NGINX — SSL/TLS (HTTP:${_ph} → HTTPS:${_ps})"
+
+    generar_cert "nginx" || return 1
+    iptables -A INPUT -p tcp --dport "$_ps" -j ACCEPT 2>/dev/null || true
+
+    # $host captura la IP real de la petición — sin hardcodear nada
+    cat > /etc/nginx/http.d/default.conf << EOF
+# Redireccion HTTP → HTTPS
+# \$host captura la IP real de la peticion sin hardcodearla
+server {
+    listen ${_ph};
+    server_name _;
+    return 301 https://\$host:${_ps}\$request_uri;
+}
+
+# HTTPS — escucha en cualquier IP del servidor
+server {
+    listen ${_ps} ssl;
+    server_name _;
+    root /var/www/html;
+    index index.html;
+
+    ssl_certificate     ${CERT_FILE};
+    ssl_certificate_key ${KEY_FILE};
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    add_header X-Frame-Options        "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff"    always;
+
+    location / { try_files \$uri \$uri/ =404; }
+    location ~ /\\. { deny all; }
+}
+EOF
+
+    if nginx -t 2>&1 | grep -q "successful"; then
+        print_success "Configuración Nginx válida"
+    else
+        print_warning "Error en nginx.conf:"
+        nginx -t
+        return 1
+    fi
+
+    rc-service nginx restart 2>/dev/null; sleep 2
+
+    if rc-service nginx status > /dev/null 2>&1; then
+        print_success "✓ Nginx con HTTPS activo en puerto ${_ps}"
+    else
+        print_warning "Nginx no arrancó — revisa: tail -20 /var/log/nginx/error.log"
+        return 1
+    fi
+}
+
+# =============================================================================
+# SSL — TOMCAT
+# Idempotente — elimina conector anterior antes de agregar el nuevo
+# =============================================================================
+ssl_tomcat() {
+    _ph="$1"
+    _ps="$2"
+
+    print_title "TOMCAT — SSL/TLS (HTTP:${_ph} → HTTPS:${_ps})"
+
+    [ -d /opt/tomcat ] \
+        || { print_warning "Tomcat no instalado en /opt/tomcat"; return 1; }
+
+    generar_cert "tomcat" || return 1
+
+    _ks="/opt/tomcat/conf/tomcat.p12"
+    _kspass="tomcat123"
+
+    rm -f "$_ks"
+    openssl pkcs12 -export \
+        -in "$CERT_FILE" -inkey "$KEY_FILE" \
+        -out "$_ks" -name tomcat \
+        -passout pass:"$_kspass" 2>/dev/null \
+        || { print_warning "Error creando keystore"; return 1; }
+    chown tomcat:tomcat "$_ks"; chmod 600 "$_ks"
+    print_success "Keystore: $_ks"
+
+    [ "$_ps" -lt 1024 ] && \
+        sysctl -w net.ipv4.ip_unprivileged_port_start="$_ps" > /dev/null 2>&1 \
+        || true
+    iptables -A INPUT -p tcp --dport "$_ps" -j ACCEPT 2>/dev/null || true
+
+    cp /opt/tomcat/conf/server.xml /opt/tomcat/conf/server.xml.bak-p7 2>/dev/null
+
+    # Eliminar conector HTTPS anterior del script (idempotente)
+    sed -i '/<!-- Conector HTTPS Practica 7/,/<\/Connector>/d' \
+        /opt/tomcat/conf/server.xml 2>/dev/null || true
+
+    sed -i "/<\/Service>/i\\
+    <!-- Conector HTTPS Practica 7 -->\\
+    <Connector port=\"${_ps}\" protocol=\"org.apache.coyote.http11.Http11NioProtocol\" maxThreads=\"150\" SSLEnabled=\"true\">\\
+        <SSLHostConfig>\\
+            <Certificate certificateKeystoreFile=\"conf/tomcat.p12\" certificateKeystorePassword=\"${_kspass}\" type=\"RSA\" />\\
+        </SSLHostConfig>\\
+    </Connector>" /opt/tomcat/conf/server.xml
+
+    print_success "Conector HTTPS puerto ${_ps} agregado a server.xml"
+
+    rc-service tomcat restart 2>/dev/null; sleep 10
+
+    if rc-service tomcat status > /dev/null 2>&1; then
+        print_success "✓ Tomcat activo"
+        print_info "Espera ~15s para que arranque completamente"
+    else
+        print_warning "Tomcat no arrancó — revisa: tail -f /opt/tomcat/logs/catalina.out"
+        return 1
+    fi
+}
+
+# =============================================================================
+# SSL — VSFTPD (FTPS)
+# =============================================================================
+ssl_vsftpd() {
+    print_title "VSFTPD — FTPS (FTP sobre TLS)"
+    command -v vsftpd > /dev/null 2>&1 \
+        || { print_warning "vsftpd no instalado"; return 1; }
+
+    _conf="/etc/vsftpd/vsftpd.conf"
+    [ -f "$_conf" ] || { print_warning "No existe $_conf"; return 1; }
+
+    generar_cert "vsftpd" || return 1
+    cp "$_conf" "${_conf}.bak-p7"
+
+    for _k in ssl_enable rsa_cert_file rsa_private_key_file \
+               ssl_tlsv1 ssl_sslv2 ssl_sslv3 \
+               force_local_data_ssl force_local_logins_ssl require_ssl_reuse; do
+        sed -i "/^${_k}/d" "$_conf"
+    done
+
+    cat >> "$_conf" << EOF
+
+# ====== FTPS — Practica 7 ======
+ssl_enable=YES
+rsa_cert_file=${CERT_FILE}
+rsa_private_key_file=${KEY_FILE}
+ssl_tlsv1=YES
+ssl_sslv2=NO
+ssl_sslv3=NO
+force_local_data_ssl=NO
+force_local_logins_ssl=NO
+require_ssl_reuse=NO
+EOF
+
+    rc-service vsftpd restart 2>/dev/null; sleep 2
+
+    if rc-service vsftpd status > /dev/null 2>&1; then
+        print_success "✓ vsftpd con FTPS activo en puerto 21"
+        print_info "FileZilla: Protocolo = FTPS (TLS Explicito), Puerto 21"
+    else
+        print_warning "vsftpd no arrancó — revisa: tail -20 /var/log/vsftpd.log"
+    fi
 }
 
 # =============================================================================
