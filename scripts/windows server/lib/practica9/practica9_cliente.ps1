@@ -6,8 +6,8 @@ function Print-Warn { param($msg) Write-Host "[WARN] $msg" -ForegroundColor Yell
 function Print-Err  { param($msg) Write-Host "[ERR]  $msg" -ForegroundColor Red    }
 
 $MULTIOTP_EXE  = "C:\Program Files\multiOTP\multiotp.exe"
-$MULTIOTP_MSI  = "$PSScriptRoot\..\lib\Practica9\multiOTP.msi"
-$VCREDIST_EXE  = "$PSScriptRoot\..\lib\Practica9\VC_redist.x64.exe"
+$MULTIOTP_MSI  = "$PSScriptRoot\multiOTP.msi"
+$VCREDIST_EXE  = "$PSScriptRoot\VC_redist.x64.exe"
 $MULTIOTP_REG  = "Registry::HKEY_CLASSES_ROOT\CLSID\{FCEFDFAB-B0A1-4C4D-8B2B-4FF4E0A3D978}"
 $RUTA_SECRET   = "$PSScriptRoot\multiotp_secret.txt"
 
@@ -113,7 +113,7 @@ function Mostrar-Instrucciones {
     Write-Host "  - multiotp_secret.txt   (generado por el script del servidor, opcion 5)"
     Write-Host ""
     Write-Host "Ubicacion en el servidor de los instaladores:"
-    Write-Host "  \\<IP_SERVIDOR>\c$\...\Scripts\windows\lib\Practica9\"
+    Write-Host "  \\<IP_SERVIDOR>\c$\...\scripts\windows server\lib\practica9\"
     Write-Host ""
     Write-Host "Ubicacion en el servidor de multiotp_secret.txt:"
     Write-Host "  \\<IP_SERVIDOR>\c$\Users\Administrador\multiotp_secret.txt"

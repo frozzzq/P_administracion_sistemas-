@@ -108,11 +108,16 @@ function Configurar-FGPP {
 function Configurar-Auditoria {
     Print-Info "Activando auditoria de eventos..."
 
-    auditpol /set /subcategory:"Inicio de sesión" /success:enable /failure:enable | Out-Null
+    # Usando GUID en lugar de nombre para evitar problemas de locale (español/inglés)
+    auditpol /set /subcategory:"{0CCE9215-69AE-11D9-BED3-505054503030}" /success:enable /failure:enable | Out-Null
+    auditpol /set /subcategory:"{0CCE9240-69AE-11D9-BED3-505054503030}" /success:enable /failure:enable | Out-Null
     Print-Ok "Auditoria activada: Inicio de sesion (aciertos y errores)"
 
-    auditpol /set /subcategory:"Sistema de archivos" /success:enable /failure:enable | Out-Null
+    auditpol /set /subcategory:"{0CCE921D-69AE-11D9-BED3-505054503030}" /success:enable /failure:enable | Out-Null
     Print-Ok "Auditoria activada: Sistema de archivos (aciertos y errores)"
+
+    auditpol /set /subcategory:"{0CCE9216-69AE-11D9-BED3-505054503030}" /success:enable /failure:enable | Out-Null
+    Print-Ok "Auditoria activada: Cierre de sesion"
 }
 
 

@@ -86,11 +86,23 @@ function Configurar-MultiOTP {
     & $MULTIOTP_EXE -config failure-delayed-time=1800  | Out-Null
     Print-Ok "Lockout: 3 intentos fallidos, bloqueo 30 minutos."
 
-    Set-ItemProperty -Path $MULTIOTP_REG -Name "cpus_logon"        -Value "0e"
-    Set-ItemProperty -Path $MULTIOTP_REG -Name "cpus_unlock"       -Value "0e"
-    Set-ItemProperty -Path $MULTIOTP_REG -Name "two_step_hide_otp" -Value 1
-    Set-ItemProperty -Path $MULTIOTP_REG -Name "multiOTPUPNFormat" -Value 1
+    Set-ItemProperty -Path $MULTIOTP_REG -Name "cpus_logon"        -Value "0e" -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $MULTIOTP_REG -Name "cpus_unlock"       -Value "0e" -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $MULTIOTP_REG -Name "two_step_hide_otp" -Value 1    -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $MULTIOTP_REG -Name "multiOTPUPNFormat" -Value 1    -ErrorAction SilentlyContinue
     Print-Ok "Credential Provider configurado."
+
+    # Generar server-secret para que el cliente pueda conectarse
+    $secretPath = "$env:USERPROFILE\multiotp_secret.txt"
+    $secret = & $MULTIOTP_EXE -showconfig 2>$null | Select-String "server-secret" | ForEach-Object { ($_ -split "=")[1].Trim() }
+    if (-not $secret) {
+        # Si no existe, generar uno nuevo
+        $secret = [System.Guid]::NewGuid().ToString("N")
+        & $MULTIOTP_EXE -config server-secret=$secret | Out-Null
+    }
+    $secret | Out-File $secretPath -Encoding UTF8
+    Print-Ok "Server-secret guardado en: $secretPath"
+    Print-Info "Copia ese archivo al cliente para la opcion 3 de practica9_cliente.ps1"
 }
 
 
