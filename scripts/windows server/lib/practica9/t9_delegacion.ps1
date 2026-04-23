@@ -35,8 +35,6 @@ function Obtener-Rol {
 function Aplicar-Permisos {
     param([string]$Sam, [string]$Rol)
 
-    $userDN = (Get-ADUser -Identity $Sam -Properties DistinguishedName).DistinguishedName
-
     switch ($Rol) {
         "identidad" {
             foreach ($ou in @("Cuates", "NoCuates")) {
@@ -58,11 +56,17 @@ function Aplicar-Permisos {
         }
         "politicas" {
             dsacls $DC_PATH /G "EMPRESA\${Sam}:GR" /I:S | Out-Null
-            dsacls $userDN /D "EMPRESA\${Sam}:WP" | Out-Null
+            foreach ($ou in @("Cuates", "NoCuates")) {
+                $path = "OU=$ou,$DC_PATH"
+                dsacls $path /D "EMPRESA\${Sam}:WP;;user" /I:S | Out-Null
+            }
         }
         "auditoria" {
             dsacls $DC_PATH /G "EMPRESA\${Sam}:GR" /I:S | Out-Null
-            dsacls $userDN /D "EMPRESA\${Sam}:WP" | Out-Null
+            foreach ($ou in @("Cuates", "NoCuates")) {
+                $path = "OU=$ou,$DC_PATH"
+                dsacls $path /D "EMPRESA\${Sam}:WP;;user" /I:S | Out-Null
+            }
             net localgroup "Lectores del registro de eventos" "EMPRESA\$Sam" /add 2>$null | Out-Null
         }
     }
@@ -71,8 +75,6 @@ function Aplicar-Permisos {
 
 function Revocar-Permisos {
     param([string]$Sam, [string]$Rol)
-
-    $userDN = (Get-ADUser -Identity $Sam -Properties DistinguishedName).DistinguishedName
 
     switch ($Rol) {
         "identidad" {
@@ -91,11 +93,17 @@ function Revocar-Permisos {
         }
         "politicas" {
             dsacls $DC_PATH /R "EMPRESA\$Sam" | Out-Null
-            dsacls $userDN  /R "EMPRESA\$Sam" | Out-Null
+            foreach ($ou in @("Cuates", "NoCuates")) {
+                $path = "OU=$ou,$DC_PATH"
+                dsacls $path /R "EMPRESA\$Sam" | Out-Null
+            }
         }
         "auditoria" {
             dsacls $DC_PATH /R "EMPRESA\$Sam" | Out-Null
-            dsacls $userDN  /R "EMPRESA\$Sam" | Out-Null
+            foreach ($ou in @("Cuates", "NoCuates")) {
+                $path = "OU=$ou,$DC_PATH"
+                dsacls $path /R "EMPRESA\$Sam" | Out-Null
+            }
             net localgroup "Lectores del registro de eventos" "EMPRESA\$Sam" /delete 2>$null | Out-Null
         }
     }
