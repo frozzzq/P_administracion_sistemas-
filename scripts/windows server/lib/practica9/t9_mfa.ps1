@@ -8,7 +8,7 @@ $DOMINIO_MFA   = "empresa.local"
 
 
 function Generar-ClaveTOTP {
-    $base32Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+    $base32Chars = "ABCDEFGHJKLMNPQRSTUVWXYZ234567"
     $bytes       = New-Object byte[] 20
     [Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($bytes)
     $clave = ""
