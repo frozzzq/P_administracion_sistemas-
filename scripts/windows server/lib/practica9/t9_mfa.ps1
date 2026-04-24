@@ -2,18 +2,18 @@ $MULTIOTP_EXE  = "C:\Program Files\multiOTP\multiotp.exe"
 $MULTIOTP_REG  = "Registry::HKEY_CLASSES_ROOT\CLSID\{FCEFDFAB-B0A1-4C4D-8B2B-4FF4E0A3D978}"
 $MULTIOTP_MSI  = "$PSScriptRoot\multiOTP.msi"
 $VCREDIST_EXE  = "$PSScriptRoot\VC_redist.x64.exe"
-$CSV_USUARIOS  = "$PSScriptRoot\usuarios_p9.csv"
+$CSV_USUARIOS  = "$PSScriptRoot\usuarios.csv"
 $RUTA_CLAVES   = "$env:USERPROFILE\claves_mfa.txt"
 $DOMINIO_MFA   = "empresa.local"
 
 
 function Generar-ClaveTOTP {
-    $base32Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+    $base32Chars = "ABCDEFGHJKLMNPQRSTUVWXYZ234567"
     $bytes       = New-Object byte[] 20
     [Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($bytes)
     $clave = ""
     for ($i = 0; $i -lt 20; $i++) {
-        $clave += $base32Chars[$bytes[$i] % 32]
+        $clave += $base32Chars[$bytes[$i] % $base32Chars.Length]
     }
     return $clave
 }
@@ -77,7 +77,6 @@ function Instalar-MultiOTP {
 function Configurar-MultiOTP {
     Print-Info "Configurando multiOTP..."
 
-    # Generar y guardar el server-secret antes de verificar multiOTP
     $bytes  = New-Object byte[] 20
     [Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($bytes)
     $secret = [BitConverter]::ToString($bytes).Replace("-", "").ToLower()
@@ -106,7 +105,6 @@ function Configurar-MultiOTP {
     & $MULTIOTP_EXE -config server-secret=$secret | Out-Null
     Print-Ok "Server-secret configurado en multiOTP."
 
-    # Regla de firewall
     $regla = Get-NetFirewallRule -DisplayName "multiOTP" -ErrorAction SilentlyContinue
     if (-not $regla) {
         New-NetFirewallRule -DisplayName "multiOTP" -Direction Inbound -Protocol TCP -LocalPort 8112 -Action Allow | Out-Null
@@ -128,8 +126,8 @@ function Registrar-Usuarios-MFA {
     "" | Out-File $RUTA_CLAVES -Append -Encoding UTF8
 
     Write-Host ""
-    Print-Info "Registrando dleyva..."
-    Registrar-Usuario-Token -Sam "dleyva"
+    Print-Info "Registrando frozz..."
+    Registrar-Usuario-Token -Sam "frozz"
 
     if (Test-Path $CSV_USUARIOS) {
         Write-Host ""

@@ -1,6 +1,6 @@
 $DOMINIO      = "empresa.local"
 $DC_PATH      = "DC=empresa,DC=local"
-$CSV_USUARIOS = "$PSScriptRoot\usuarios_p9.csv"
+$CSV_USUARIOS = "$PSScriptRoot\usuarios.csv"
 
 
 function Configurar-IP-Servidor {
@@ -153,12 +153,10 @@ function Crear-UsuariosCSV {
 function Habilitar-RDP-Usuarios {
     Print-Info "Habilitando RDP para todos los usuarios..."
 
-    # Habilitar RDP en el servidor
     Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
         -Name "fDenyTSConnections" -Value 0
     Enable-NetFirewallRule -DisplayGroup "Escritorio remoto" -ErrorAction SilentlyContinue
 
-    # Agregar todos los usuarios al grupo de escritorio remoto
     $usuarios = @()
     $usuarios += Get-ADUser -Filter * -SearchBase "OU=Cuates,$DC_PATH" -ErrorAction SilentlyContinue
     $usuarios += Get-ADUser -Filter * -SearchBase "OU=NoCuates,$DC_PATH" -ErrorAction SilentlyContinue
@@ -190,30 +188,30 @@ function Habilitar-RDP-Usuarios {
 }
 
 
-function Crear-AdminDleyva {
-    Print-Info "Verificando usuario administrador dleyva..."
+function Crear-AdminFrozz {
+    Print-Info "Verificando usuario administrador frozz..."
 
-    $existe = Get-ADUser -Filter "SamAccountName -eq 'dleyva'" -ErrorAction SilentlyContinue
+    $existe = Get-ADUser -Filter "SamAccountName -eq 'frozz'" -ErrorAction SilentlyContinue
     if (-not $existe) {
-        $pass = Read-Host "Contrasena para dleyva" -AsSecureString
+        $pass = Read-Host "Contrasena para frozz" -AsSecureString
         New-ADUser `
-            -Name              "dleyva" `
-            -SamAccountName    "dleyva" `
-            -UserPrincipalName "dleyva@$DOMINIO" `
+            -Name              "frozz" `
+            -SamAccountName    "frozz" `
+            -UserPrincipalName "frozz@$DOMINIO" `
             -AccountPassword   $pass `
             -Enabled           $true
-        Print-Ok "dleyva creado."
+        Print-Ok "frozz creado."
     } else {
-        Print-Warn "dleyva ya existe en AD."
+        Print-Warn "frozz ya existe en AD."
     }
 
     $enDomainAdmins = Get-ADGroupMember "Admins. del dominio" -ErrorAction SilentlyContinue |
-                      Where-Object { $_.SamAccountName -eq "dleyva" }
+                      Where-Object { $_.SamAccountName -eq "frozz" }
     if (-not $enDomainAdmins) {
-        Add-ADGroupMember -Identity "Admins. del dominio" -Members "dleyva"
-        Print-Ok "dleyva agregado a Admins. del dominio."
+        Add-ADGroupMember -Identity "Admins. del dominio" -Members "frozz"
+        Print-Ok "frozz agregado a Admins. del dominio."
     } else {
-        Print-Warn "dleyva ya es miembro de Admins. del dominio (se omite)."
+        Print-Warn "frozz ya es miembro de Admins. del dominio (se omite)."
     }
 }
 
@@ -223,7 +221,7 @@ function Configurar-AD {
     Write-Host "========== Configuracion de Active Directory =========="
     Write-Host ""
 
-    Crear-AdminDleyva
+    Crear-AdminFrozz
     Write-Host ""
     Crear-OUs
     Write-Host ""
