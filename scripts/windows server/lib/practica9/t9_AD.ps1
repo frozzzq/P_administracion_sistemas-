@@ -1,6 +1,6 @@
 $DOMINIO      = "empresa.local"
 $DC_PATH      = "DC=empresa,DC=local"
-$CSV_USUARIOS = "$PSScriptRoot\usuarios.csv"
+$CSV_USUARIOS = "$PSScriptRoot\usuarios_p9.csv"
 
 
 function Configurar-IP-Servidor {

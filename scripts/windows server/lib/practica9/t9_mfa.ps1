@@ -2,7 +2,7 @@ $MULTIOTP_EXE  = "C:\Program Files\multiOTP\multiotp.exe"
 $MULTIOTP_REG  = "Registry::HKEY_CLASSES_ROOT\CLSID\{FCEFDFAB-B0A1-4C4D-8B2B-4FF4E0A3D978}"
 $MULTIOTP_MSI  = "$PSScriptRoot\multiOTP.msi"
 $VCREDIST_EXE  = "$PSScriptRoot\VC_redist.x64.exe"
-$CSV_USUARIOS  = "$PSScriptRoot\usuarios.csv"
+$CSV_USUARIOS  = "$PSScriptRoot\usuarios_p9.csv"
 $RUTA_CLAVES   = "$env:USERPROFILE\claves_mfa.txt"
 $DOMINIO_MFA   = "empresa.local"
 
