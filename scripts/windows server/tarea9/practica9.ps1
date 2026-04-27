@@ -5,12 +5,12 @@ function Print-Info { param($msg) Write-Host "[INFO] $msg" -ForegroundColor Cyan
 function Print-Warn { param($msg) Write-Host "[WARN] $msg" -ForegroundColor Yellow }
 function Print-Err  { param($msg) Write-Host "[ERR]  $msg" -ForegroundColor Red    }
 
-$rutaFunciones = "$PSScriptRoot\..\lib\Practica9"
+$rutaFunciones = "$PSScriptRoot\..\lib\practica9"
 
-. "$rutaFunciones\T9_AD.ps1"
-. "$rutaFunciones\T9_Delegacion.ps1"
-. "$rutaFunciones\T9_Politicas.ps1"
-. "$rutaFunciones\T9_MFA.ps1"
+. "$rutaFunciones\t9_AD.ps1"
+. "$rutaFunciones\t9_delegacion.ps1"
+. "$rutaFunciones\t9_politicas.ps1"
+. "$rutaFunciones\t9_mfa.ps1"
 
 function Ver-Usuarios-Roles {
     Clear-Host
@@ -163,20 +163,22 @@ function Mostrar-Menu {
         Write-Host "  [5] Configurar MFA"
         Write-Host "  [6] Generar Reporte de Auditoria"
         Write-Host "  [7] Administrar Usuarios"
-        Write-Host "  [8] Salir"
+        Write-Host "  [8] Crear Usuario (interactivo)"
+        Write-Host "  [9] Salir"
         Write-Host ""
 
         $op = Read-Host "Selecciona una opcion"
 
         switch ($op) {
-            "1" { Clear-Host; Inicializar-Entorno;   Read-Host "`nEnter para continuar" }
-            "2" { Clear-Host; Configurar-AD;         Read-Host "`nEnter para continuar" }
-            "3" { Clear-Host; Configurar-Delegacion; Read-Host "`nEnter para continuar" }
-            "4" { Clear-Host; Configurar-Politicas;  Read-Host "`nEnter para continuar" }
-            "5" { Clear-Host; Configurar-MFA;        Read-Host "`nEnter para continuar" }
-            "6" { Clear-Host; Generar-Reporte;       Read-Host "`nEnter para continuar" }
+            "1" { Clear-Host; Inicializar-Entorno;        Read-Host "`nEnter para continuar" }
+            "2" { Clear-Host; Configurar-AD;              Read-Host "`nEnter para continuar" }
+            "3" { Clear-Host; Configurar-Delegacion;      Read-Host "`nEnter para continuar" }
+            "4" { Clear-Host; Configurar-Politicas;       Read-Host "`nEnter para continuar" }
+            "5" { Clear-Host; Configurar-MFA;             Read-Host "`nEnter para continuar" }
+            "6" { Clear-Host; Generar-Reporte;            Read-Host "`nEnter para continuar" }
             "7" { Administrar-Usuarios }
-            "8" { Clear-Host; Write-Host "Saliendo..."; return }
+            "8" { Crear-Usuario-Interactivo;              Read-Host "`nEnter para continuar" }
+            "9" { Clear-Host; Write-Host "Saliendo..."; return }
             default { Print-Warn "Opcion no valida."; Start-Sleep -Seconds 1 }
         }
     } while ($true)

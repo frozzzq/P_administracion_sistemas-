@@ -1,6 +1,6 @@
 $DOMINIO      = "empresa.local"
 $DC_PATH      = "DC=empresa,DC=local"
-$CSV_USUARIOS = "$PSScriptRoot\usuarios_p9.csv"
+$CSV_USUARIOS = "$PSScriptRoot\usuarios.csv"
 
 
 function Configurar-IP-Servidor {
@@ -153,12 +153,10 @@ function Crear-UsuariosCSV {
 function Habilitar-RDP-Usuarios {
     Print-Info "Habilitando RDP para todos los usuarios..."
 
-    # Habilitar RDP en el servidor
     Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
         -Name "fDenyTSConnections" -Value 0
     Enable-NetFirewallRule -DisplayGroup "Escritorio remoto" -ErrorAction SilentlyContinue
 
-    # Agregar todos los usuarios al grupo de escritorio remoto
     $usuarios = @()
     $usuarios += Get-ADUser -Filter * -SearchBase "OU=Cuates,$DC_PATH" -ErrorAction SilentlyContinue
     $usuarios += Get-ADUser -Filter * -SearchBase "OU=NoCuates,$DC_PATH" -ErrorAction SilentlyContinue
@@ -249,6 +247,110 @@ function Configurar-PerfilesMoviles {
             Print-Ok "  $sam - perfil movil asignado."
         }
     }
+}
+
+
+# ============================================================
+# NUEVA FUNCION: Crear usuario de forma interactiva
+# Pide datos por consola, crea el usuario en AD y registra
+# su token TOTP en multiOTP para que pueda iniciar sesion
+# con Google Authenticator de inmediato.
+# ============================================================
+function Crear-Usuario-Interactivo {
+    Clear-Host
+    Write-Host "========== Crear Nuevo Usuario =========="
+    Write-Host ""
+
+    # --- Datos basicos ---
+    $nombre   = Read-Host "Nombre"
+    $apellido = Read-Host "Apellido"
+    $sam      = Read-Host "Nombre de usuario (SamAccountName)"
+
+    if ([string]::IsNullOrWhiteSpace($nombre) -or
+        [string]::IsNullOrWhiteSpace($apellido) -or
+        [string]::IsNullOrWhiteSpace($sam)) {
+        Print-Err "Nombre, apellido y usuario son obligatorios."
+        return
+    }
+
+    # --- OU ---
+    Write-Host ""
+    Write-Host "  [1] Cuates"
+    Write-Host "  [2] NoCuates"
+    $ouSel = Read-Host "Selecciona la OU"
+    $ou = switch ($ouSel) {
+        "1" { "Cuates"   }
+        "2" { "NoCuates" }
+        default {
+            Print-Err "Opcion invalida. Usa 1 o 2."
+            return
+        }
+    }
+
+    # --- Contrasena ---
+    Write-Host ""
+    $passSeg = Read-Host "Contrasena" -AsSecureString
+
+    # --- Verificar que no exista ---
+    $existe = Get-ADUser -Filter "SamAccountName -eq '$sam'" -ErrorAction SilentlyContinue
+    if ($existe) {
+        Print-Err "El usuario '$sam' ya existe en AD."
+        return
+    }
+
+    # --- Crear en AD ---
+    try {
+        New-ADUser `
+            -Name              "$nombre $apellido" `
+            -GivenName         $nombre `
+            -Surname           $apellido `
+            -SamAccountName    $sam `
+            -UserPrincipalName "$sam@$DOMINIO" `
+            -AccountPassword   $passSeg `
+            -Path              "OU=$ou,$DC_PATH" `
+            -Enabled           $true `
+            -ErrorAction Stop
+
+        Print-Ok "Usuario '$sam' creado en OU=$ou."
+    } catch {
+        Print-Err "No se pudo crear el usuario: $_"
+        return
+    }
+
+    # --- Agregar a GrupoUsuarios para que aplique FGPP-Usuarios ---
+    try {
+        Add-ADGroupMember -Identity "GrupoUsuarios" -Members $sam -ErrorAction Stop
+        Print-Ok "'$sam' agregado a GrupoUsuarios."
+    } catch {
+        Print-Warn "No se pudo agregar a GrupoUsuarios (puede que no exista aun)."
+    }
+
+    # --- Habilitar RDP ---
+    try {
+        Add-ADGroupMember -Identity "Usuarios de escritorio remoto" -Members $sam -ErrorAction SilentlyContinue
+        net localgroup "Usuarios de escritorio remoto" "EMPRESA\$sam" /add 2>$null | Out-Null
+        Print-Ok "RDP habilitado para '$sam'."
+    } catch {}
+
+    # --- Registrar token MFA ---
+    Write-Host ""
+    Print-Info "Registrando token MFA para '$sam'..."
+
+    if (Get-Command Registrar-Usuario-Token -ErrorAction SilentlyContinue) {
+        # Apuntar el archivo de claves al mismo destino que usa t9_mfa.ps1
+        $script:RUTA_CLAVES = "$env:USERPROFILE\claves_mfa.txt"
+        Registrar-Usuario-Token -Sam $sam
+        Write-Host ""
+        Print-Ok "Token registrado. Abre claves_mfa.txt para ver la clave TOTP de '$sam'."
+        Print-Info "Ruta: $env:USERPROFILE\claves_mfa.txt"
+    } else {
+        Print-Warn "multiOTP no esta disponible. Ejecuta la opcion 5 (Configurar MFA) primero."
+        Print-Warn "Luego vuelve a crear el usuario o registra manualmente con:"
+        Write-Host "  & 'C:\Program Files\multiOTP\multiotp.exe' -createga $sam <CLAVE>"
+    }
+
+    Write-Host ""
+    Print-Ok "Usuario '$sam' listo. Ya puede iniciar sesion con EMPRESA\$sam."
 }
 
 
