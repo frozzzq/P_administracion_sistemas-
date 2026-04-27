@@ -1,6 +1,6 @@
 $DOMINIO      = "empresa.local"
 $DC_PATH      = "DC=empresa,DC=local"
-$CSV_USUARIOS = "$PSScriptRoot\usuarios.csv"
+$CSV_USUARIOS = "$PSScriptRoot\usuarios_p9.csv"
 
 
 function Configurar-IP-Servidor {
@@ -153,10 +153,12 @@ function Crear-UsuariosCSV {
 function Habilitar-RDP-Usuarios {
     Print-Info "Habilitando RDP para todos los usuarios..."
 
+    # Habilitar RDP en el servidor
     Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
         -Name "fDenyTSConnections" -Value 0
     Enable-NetFirewallRule -DisplayGroup "Escritorio remoto" -ErrorAction SilentlyContinue
 
+    # Agregar todos los usuarios al grupo de escritorio remoto
     $usuarios = @()
     $usuarios += Get-ADUser -Filter * -SearchBase "OU=Cuates,$DC_PATH" -ErrorAction SilentlyContinue
     $usuarios += Get-ADUser -Filter * -SearchBase "OU=NoCuates,$DC_PATH" -ErrorAction SilentlyContinue
@@ -188,7 +190,7 @@ function Habilitar-RDP-Usuarios {
 }
 
 
-function Crear-AdminFrozz {
+function Crear-Adminfrozz {
     Print-Info "Verificando usuario administrador frozz..."
 
     $existe = Get-ADUser -Filter "SamAccountName -eq 'frozz'" -ErrorAction SilentlyContinue
@@ -216,18 +218,54 @@ function Crear-AdminFrozz {
 }
 
 
+function Configurar-PerfilesMoviles {
+    Print-Info "Configurando perfiles moviles..."
+
+    if (-not (Test-Path "C:\Perfiles")) {
+        New-Item -Path "C:\Perfiles" -ItemType Directory -Force | Out-Null
+        Print-Ok "Carpeta C:\Perfiles creada."
+    }
+
+    icacls "C:\Perfiles" /grant "Usuarios del dominio:(OI)(CI)F" /T | Out-Null
+    Print-Ok "Permisos NTFS configurados en C:\Perfiles."
+
+    $share = Get-SmbShare -Name "Perfiles" -ErrorAction SilentlyContinue
+    if (-not $share) {
+        New-SmbShare -Name "Perfiles" -Path "C:\Perfiles" -FullAccess "Todos" | Out-Null
+        Print-Ok "Carpeta compartida como \\$env:COMPUTERNAME\Perfiles"
+    } else {
+        Print-Warn "Compartido 'Perfiles' ya existe (se omite)."
+    }
+
+    $usuarios = @("frozz")
+    if (Test-Path $CSV_USUARIOS) {
+        $usuarios += (Import-Csv $CSV_USUARIOS).Usuario
+    }
+
+    foreach ($sam in $usuarios) {
+        $existe = Get-ADUser -Filter "SamAccountName -eq '$sam'" -ErrorAction SilentlyContinue
+        if ($existe) {
+            Set-ADUser -Identity $sam -ProfilePath "\\$env:COMPUTERNAME\Perfiles\$sam"
+            Print-Ok "  $sam - perfil movil asignado."
+        }
+    }
+}
+
+
 function Configurar-AD {
     Clear-Host
     Write-Host "========== Configuracion de Active Directory =========="
     Write-Host ""
 
-    Crear-AdminFrozz
+    Crear-Adminfrozz
     Write-Host ""
     Crear-OUs
     Write-Host ""
     Crear-UsuariosCSV
     Write-Host ""
     Habilitar-RDP-Usuarios
+    Write-Host ""
+    Configurar-PerfilesMoviles
 
     Write-Host ""
     Print-Ok "Active Directory configurado correctamente."
