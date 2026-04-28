@@ -1,0 +1,5 @@
+PG_USER=admin
+PG_PASS=admin123
+PG_DB=practica10
+FTP_USER=ftpuser
+FTP_PASS=ftp123

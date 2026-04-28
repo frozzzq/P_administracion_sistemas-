@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Práctica 10 — Infraestructura con Docker</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <img src="img/logo.png" alt="Logo Docker" class="logo">
+            <h1>Infraestructura con Docker</h1>
+            <p class="subtitle">Práctica 10 — Administración de Sistemas</p>
+        </div>
+    </header>
+
+    <main>
+        <section class="servicios">
+            <h2>Servicios desplegados</h2>
+            <div class="cards">
+                <div class="card web">
+                    <h3>🌐 Servidor Web</h3>
+                    <p>Nginx sobre Alpine Linux</p>
+                    <p>Usuario no-root · Server tokens OFF</p>
+                    <p>Puerto: <strong>8080</strong></p>
+                </div>
+                <div class="card db">
+                    <h3>🗄️ Base de Datos</h3>
+                    <p>PostgreSQL 16</p>
+                    <p>Volumen persistente: <code>db_data</code></p>
+                    <p>Backup automático cada hora</p>
+                </div>
+                <div class="card ftp">
+                    <h3>📁 Servidor FTP</h3>
+                    <p>vsftpd sobre Alpine</p>
+                    <p>Volumen compartido con web</p>
+                    <p>Puerto: <strong>21</strong></p>
+                </div>
+            </div>
+        </section>
+
+        <section class="red">
+            <h2>Red personalizada</h2>
+            <div class="info-box">
+                <p><strong>Nombre:</strong> infra_red</p>
+                <p><strong>Driver:</strong> bridge</p>
+                <p><strong>Subnet:</strong> 172.20.0.0/16</p>
+                <p>Todos los contenedores se comunican por nombre de host.</p>
+            </div>
+        </section>
+
+        <section class="uploads">
+            <h2>Archivos subidos via FTP</h2>
+            <p>Los archivos subidos por FTP aparecen en: 
+               <a href="/uploads/">/uploads/</a></p>
+        </section>
+    </main>
+
+    <footer>
+        <p>Administración de Sistemas — Alpine Linux + Docker</p>
+    </footer>
+</body>
+</html>

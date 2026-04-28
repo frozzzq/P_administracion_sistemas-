@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Terminal - Sistema Docker</title>
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+    <div class="terminal">
+        <div class="line">root@alpine-server:~# ./practica10.sh -i</div>
+        <div class="line">Iniciando infraestructura Docker en Alpine Linux</div>
+        <br>
+        <div class="line">--- ESTADO DE CONTENEDORES DOCKER ---</div>
+        <div class="boxes">
+            <div class="box">
+                <div class="box-title">[ SERVIDOR WEB ]</div>
+                <div class="box-content">IMG: Nginx Alpine<br>PORT: 8080->80<br>STAT: <span style="color:#00ff41">Online</span></div>
+            </div>
+            <div class="box">
+                <div class="box-title">[ BASE DE DATOS ]</div>
+                <div class="box-content">IMG: PostgreSQL 16<br>VOL: db_data<br>STAT: <span style="color:#00ff41">Online</span></div>
+            </div>
+            <div class="box">
+                <div class="box-title">[ SERVIDOR FTP ]</div>
+                <div class="box-content">IMG: Alpine FTP<br>VOL: web_content<br>STAT: <span style="color:#00ff41">Online</span></div>
+            </div>
+        </div>
+        <br>
+        <div class="line">--- SISTEMA DE ARCHIVOS COMPARTIDO FTP/WEB ---</div>
+        <div class="line">Volumen enlazado detectado. Todo archivo cargado via FTP se desplegara aqui.</div>
+        <div class="line">Ingresa el nombre del archivo para visualizarlo:</div>
+        <div class="input-line">
+            <span>root@web-client:~# GET /</span>
+            <input type="text" id="ftpFileInput" placeholder="ejemplo.jpg" autocomplete="off" />
+            <button onclick="verArchivo()">[EJECUTAR]</button>
+        </div>
+        <br><br>
+        <div class="line">root@alpine-server:~# docker stats --no-stream <span class="easter-egg-trigger" onclick="openEasterEgg()">.</span></div>
+        <div class="line">Todos los contenedores operando al 100%.<span class="cursor">_</span></div>
+    </div>
+    <div id="easterEggModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEasterEgg()">&times;</span>
+            <h2 class="glitch">ARCHIVOS CLASIFICADOS DE BLETCHLEY PARK</h2>
+            <p class="story"><strong>NIVEL DE ACCESO: TOP SECRET</strong><br><br>
+            Lo que los libros de historia se niegan a contar: En 1941, Alan Turing estaba estancado
+            intentando romper el cifrado Enigma. Juntos descubrieron que la clave era levantar
+            3 contenedores Docker con Alpine Linux. Este fue el primer docker run que dio fin a la guerra.</p>
+        </div>
+    </div>
+    <script>
+        function verArchivo() {
+            const f = document.getElementById('ftpFileInput').value.trim();
+            if (f) { window.open('/' + f, '_blank'); }
+            else { alert('Ingresa el nombre del archivo.'); }
+        }
+        document.getElementById('ftpFileInput').addEventListener('keypress', e => { if(e.key==='Enter') verArchivo(); });
+        function openEasterEgg()  { document.getElementById('easterEggModal').style.display='block'; }
+        function closeEasterEgg() { document.getElementById('easterEggModal').style.display='none'; }
+        window.onclick = e => { const m=document.getElementById('easterEggModal'); if(e.target===m) m.style.display='none'; }
+    </script>
+</body>
+</html>

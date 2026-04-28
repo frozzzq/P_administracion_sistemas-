@@ -338,7 +338,7 @@ function Crear-Usuario-Interactivo {
 
     if (Get-Command Registrar-Usuario-Token -ErrorAction SilentlyContinue) {
         # Apuntar el archivo de claves al mismo destino que usa t9_mfa.ps1
-        $script:RUTA_CLAVES = "$env:USERPROFILE\claves_mfa.txt"
+        $script:RUTA_CLAVES = "C:\Users\Administrador\claves_mfa.txt"
         Registrar-Usuario-Token -Sam $sam
         Write-Host ""
         Print-Ok "Token registrado. Abre claves_mfa.txt para ver la clave TOTP de '$sam'."

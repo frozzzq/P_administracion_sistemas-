@@ -1,0 +1,136 @@
+/* style.css — Estilos para Práctica 10 */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+}
+
+header {
+    background: linear-gradient(135deg, #4a0072, #9c27b0);
+    padding: 40px 20px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(156, 39, 176, 0.4);
+}
+
+.header-content .logo {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 15px;
+    filter: brightness(0) invert(1);
+}
+
+header h1 {
+    font-size: 2.2em;
+    color: #fff;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    color: #e1bee7;
+    font-size: 1em;
+}
+
+main {
+    max-width: 960px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+section {
+    margin-bottom: 40px;
+}
+
+h2 {
+    font-size: 1.4em;
+    color: #ce93d8;
+    margin-bottom: 20px;
+    border-left: 4px solid #9c27b0;
+    padding-left: 12px;
+}
+
+.cards {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.card {
+    flex: 1;
+    min-width: 220px;
+    background: #16213e;
+    border-radius: 10px;
+    padding: 24px;
+    border: 1px solid #4a4a6a;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(156, 39, 176, 0.3);
+}
+
+.card h3 {
+    color: #ce93d8;
+    margin-bottom: 12px;
+    font-size: 1.1em;
+}
+
+.card p {
+    color: #b0b0c0;
+    margin-bottom: 6px;
+    font-size: 0.9em;
+}
+
+.card strong {
+    color: #e0e0ff;
+}
+
+.card code {
+    background: #0f3460;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: #f8bbd0;
+}
+
+.info-box {
+    background: #16213e;
+    border-radius: 10px;
+    padding: 24px;
+    border: 1px solid #4a4a6a;
+}
+
+.info-box p {
+    margin-bottom: 8px;
+    color: #b0b0c0;
+}
+
+.info-box strong {
+    color: #ce93d8;
+}
+
+a {
+    color: #f48fb1;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    color: #6a6a8a;
+    border-top: 1px solid #2a2a4a;
+    margin-top: 40px;
+    font-size: 0.85em;
+}
